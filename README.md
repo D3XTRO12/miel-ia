@@ -138,7 +138,7 @@ Currently under development. Initial model training implementation in progress (
 
 ## 👨‍🔬 Author
 
-Developed by [Your Name], Computer Engineering student.
+Developed by [Pablo Mirazo](https://x.com/iamD3XTRO) - Computer Engineering student.
 
 This project was created to provide intelligent diagnostic tools for healthcare professionals, particularly for early detection of Guillain-Barré Syndrome.
 
