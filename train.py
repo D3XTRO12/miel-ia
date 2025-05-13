@@ -20,7 +20,7 @@ os.makedirs(trained_models_dir, exist_ok=True)
 graphs_dir = os.path.join(os.getcwd(), "static", "graphs")
 os.makedirs(graphs_dir, exist_ok=True)
 
-file_path = os.path.join(os.getcwd(), 'analysis', 'emg_balanced_binary.csv')
+file_path = os.path.join(os.getcwd(), 'analysis', 'split','emg_binary_final.csv')
 data = pd.read_csv(file_path)
 
 print(f"Valores únicos en gb_score: {data['gb_score'].unique()}")
@@ -139,7 +139,16 @@ except Exception as e:
     except Exception as e2:
         print(f"No se pudo guardar: {e2}")
 
-joblib.dump(model_results['random_forest'], os.path.join(trained_models_dir, 'random_forest_model.pkl'))
-joblib.dump(model_results['xgboost'], os.path.join(trained_models_dir, 'xgboost_model.pkl'))
-print("Modelos guardados exitosamente.")
+# Modificación aplicada: reentrenamiento completo antes de guardar modelos RF y XGB
+print("\nReentrenando modelos en el dataset completo para guardar...")
+
+final_rf_model = create_rf_model()
+final_rf_model.fit(X, y)
+joblib.dump(final_rf_model, os.path.join(trained_models_dir, 'random_forest_model.pkl'))
+
+final_xgb_model = create_xgb_model()
+final_xgb_model.fit(X, y)
+joblib.dump(final_xgb_model, os.path.join(trained_models_dir, 'xgboost_model.pkl'))
+
+print("Modelos Random Forest y XGBoost guardados exitosamente tras reentrenamiento.")
 print("Entrenamiento y evaluación completados.")
