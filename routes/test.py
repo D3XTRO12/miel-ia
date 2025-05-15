@@ -1,3 +1,4 @@
+import pdb
 from fastapi import APIRouter, UploadFile, File
 import pandas as pd
 import pickle
@@ -5,10 +6,11 @@ import numpy as np
 import io
 from tensorflow.keras.models import load_model
 import os
+import joblib  # Añadido para cargar modelos scikit-learn
 
 test_router = APIRouter()
 
-# Función para cargar los modelos
+# Función mejorada para cargar los modelos
 def load_models():
     base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "trained_models"))
     
@@ -16,16 +18,50 @@ def load_models():
     rf_model_path = os.path.join(base_path, "random_forest_model.pkl")
     xgb_model_path = os.path.join(base_path, "xgboost_model.pkl")
 
+    print(f"Cargando modelos desde: {base_path}")
+    print(f"  - Keras: {keras_model_path}")
+    print(f"  - RF: {rf_model_path}")
+    print(f"  - XGB: {xgb_model_path}")
+
+    # Cargar modelo Keras
     keras_model = load_model(keras_model_path)
+    print(f"Modelo Keras cargado: {type(keras_model)}")
 
-    with open(rf_model_path, "rb") as f:
-        rf_model = pickle.load(f)
-        if isinstance(rf_model, np.ndarray):
-            raise TypeError("Error: rf_model fue sobrescrito por un array de predicciones en algún punto.")
-        print("Tipo de rf_model:", type(rf_model))
+    # Cargar modelo RandomForest usando joblib (preferido para scikit-learn)
+    try:
+        rf_model = joblib.load(rf_model_path)
+        print(f"Modelo RandomForest cargado con joblib: {type(rf_model)}")
+    except Exception as e:
+        print(f"Error al cargar con joblib: {e}")
+        print("Intentando cargar con pickle...")
+        with open(rf_model_path, "rb") as f:
+            rf_model = pickle.load(f)
+            print(f"Modelo RandomForest cargado con pickle: {type(rf_model)}")
 
-    with open(xgb_model_path, "rb") as f:
-        xgb_model = pickle.load(f)
+    # Validar que el modelo RF es correcto
+    if isinstance(rf_model, np.ndarray):
+        raise TypeError("Error: rf_model fue sobrescrito por un array de predicciones en algún punto.")
+    
+    if not hasattr(rf_model, 'predict'):
+        raise TypeError(f"Error: rf_model no parece tener un método 'predict'. Tipo: {type(rf_model)}")
+    
+    if not hasattr(rf_model, 'predict_proba'):
+        print("⚠️ Advertencia: rf_model no tiene método 'predict_proba', puede causar errores al usarlo.")
+
+    # Cargar modelo XGBoost usando joblib (también preferido para XGBoost guardado con scikit-learn API)
+    try:
+        xgb_model = joblib.load(xgb_model_path)
+        print(f"Modelo XGBoost cargado con joblib: {type(xgb_model)}")
+    except Exception as e:
+        print(f"Error al cargar XGBoost con joblib: {e}")
+        print("Intentando cargar con pickle...")
+        with open(xgb_model_path, "rb") as f:
+            xgb_model = pickle.load(f)
+            print(f"Modelo XGBoost cargado con pickle: {type(xgb_model)}")
+
+    # Validar que el modelo XGBoost es correcto
+    if not hasattr(xgb_model, 'predict'):
+        raise TypeError(f"Error: xgb_model no parece tener un método 'predict'. Tipo: {type(xgb_model)}")
 
     return keras_model, rf_model, xgb_model
 
@@ -33,11 +69,21 @@ def load_models():
 @test_router.post("/test")
 async def test_models_endpoint(file: UploadFile = File(...)):
     # Cargar los modelos
-    keras_model, rf_model, xgb_model = load_models()
+    try:
+        keras_model, rf_model, xgb_model = load_models()
+        print("Modelos cargados correctamente")
+    except Exception as e:
+        print(f"Error al cargar modelos: {e}")
+        return {"error": f"Error al cargar modelos: {str(e)}"}
 
-    # Leer el archivo CSV
-    content = await file.read()
-    df = pd.read_csv(io.StringIO(content.decode("utf-8")))
+    try:
+        # Leer el archivo CSV
+        content = await file.read()
+        df = pd.read_csv(io.StringIO(content.decode("utf-8")))
+        print(f"Archivo CSV cargado: {df.shape[0]} filas, {df.shape[1]} columnas")
+    except Exception as e:
+        print(f"Error al procesar el archivo CSV: {e}")
+        return {"error": f"Error al procesar el archivo CSV: {str(e)}"}
 
     # Definir las columnas de características
     feature_columns = [
@@ -63,25 +109,33 @@ async def test_models_endpoint(file: UploadFile = File(...)):
         'willison_amplitude_e5', 'willison_amplitude_e6', 'willison_amplitude_e7', 'willison_amplitude_e8'
     ]
 
+    # Verificar que todas las columnas necesarias están presentes
+    missing_columns = [col for col in feature_columns if col not in df.columns]
+    if missing_columns:
+        print(f"Columnas faltantes en el CSV: {missing_columns}")
+        return {"error": f"Columnas faltantes en el CSV: {', '.join(missing_columns)}"}
+
     X = df[feature_columns].values
+    print(f"Matriz de características preparada: {X.shape}")
 
-    # Predicciones con el modelo Keras (Regresión Logística)
-    keras_predictions = keras_model.predict(X)
-    print("\nPredicciones - Modelo de Regresión Logística (Keras):")
-    print(keras_predictions.flatten())
+    try:
+        # Predicciones con el modelo Keras (Regresión Logística)
+        keras_predictions = keras_model.predict(X)
+        print(f"Predicciones Keras completadas: {keras_predictions.shape}")
 
-    # Predicciones con el modelo Random Forest
-    rf_predictions = rf_model.predict_proba(X)[:, 1]
-    print("\nPredicciones - Modelo Random Forest:")
-    print(rf_predictions)
+        # Predicciones con el modelo Random Forest
+        rf_predictions = rf_model.predict_proba(X)[:, 1]
+        print(f"Predicciones RandomForest completadas: {rf_predictions.shape}")
 
-    # Predicciones con el modelo XGBoost
-    xgb_predictions = xgb_model.predict_proba(X)[:, 1]
-    print("\nPredicciones - Modelo XGBoost:")
-    print(xgb_predictions)
+        # Predicciones con el modelo XGBoost
+        xgb_predictions = xgb_model.predict_proba(X)[:, 1]
+        print(f"Predicciones XGBoost completadas: {xgb_predictions.shape}")
 
-    return {
-        "keras_preds": keras_predictions.flatten().tolist(),
-        "rf_preds": rf_predictions.tolist(),
-        "xgb_preds": xgb_predictions.tolist()
-    }
+        return {
+            "keras_preds": keras_predictions.flatten().tolist(),
+            "rf_preds": rf_predictions.tolist(),
+            "xgb_preds": xgb_predictions.tolist()
+        }
+    except Exception as e:
+        print(f"Error al realizar predicciones: {e}")
+        return {"error": f"Error al realizar predicciones: {str(e)}"}
