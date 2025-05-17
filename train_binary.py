@@ -14,10 +14,10 @@ from models.binary_logistic_regression import create_model as create_logistic_mo
 from models.binary_random_forest import create_model as create_rf_model
 from models.binary_xgboost import create_model as create_xgb_model
 
-trained_models_dir = os.path.join(os.getcwd(), "trained_models")
+trained_models_dir = os.path.join(os.getcwd(), "trained_models", "binary")
 os.makedirs(trained_models_dir, exist_ok=True)
 
-graphs_dir = os.path.join(os.getcwd(), "static", "graphs")
+graphs_dir = os.path.join(os.getcwd(), "static", "graphs", "binary")
 os.makedirs(graphs_dir, exist_ok=True)
 
 file_path = os.path.join(os.getcwd(), 'analysis', 'split','emg_binary_final.csv')
