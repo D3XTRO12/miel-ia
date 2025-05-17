@@ -1,11 +1,9 @@
-# from fastapi import FastAPI
-from routes.train import router as train_router  # ajusta el path según tu estructura
-
-# app = FastAPI()
-# 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routes.test import test_router
+from routes.test_binary import test_binary
+from routes.train_binary import train_binary
+from routes.train_classify import train_classify
+from routes.test_classify import test_classify
 
 # Crear la aplicación FastAPI
 app = FastAPI(
@@ -24,10 +22,14 @@ app.add_middleware(
 )
 
 # Incluir los routers
-app.include_router(test_router, tags=["test"])
-app.include_router(train_router, tags=["train"])
+app.include_router(test_binary, tags=["Test"])
+app.include_router(test_classify, tags=["Test"])
+app.include_router(train_binary, tags=["Train"])
+app.include_router(train_classify, tags=["Train"])
 
-@app.get("/")
+
+
+@app.get("/", tags=["Root"])
 async def root():
     return {
         "message": "API de Clasificación Binaria",
