@@ -2,15 +2,15 @@ from fastapi import APIRouter, BackgroundTasks
 import subprocess
 import os
 
-router = APIRouter()
+train_binary= APIRouter()
 
-@router.post("/train")
+@train_binary.post("/train-binary")
 def train_models(background_tasks: BackgroundTasks):
     # Ruta absoluta al script de entrenamiento
-    train_script_path = os.path.abspath("train.py")
+    train_script_path = os.path.abspath("train_binary.py")
 
     # Ruta absoluta al directorio donde se guardarán los modelos
-    trained_models_dir = os.path.abspath("trained_models")
+    trained_models_dir = os.path.abspath("trained_models/binary")
 
     # Asegurarse de que el directorio de modelos entrenados exista
     os.makedirs(trained_models_dir, exist_ok=True)

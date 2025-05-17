@@ -8,11 +8,11 @@ from tensorflow.keras.models import load_model
 import os
 import joblib  # Añadido para cargar modelos scikit-learn
 
-test_router = APIRouter()
+test_binary = APIRouter()
 
 # Función mejorada para cargar los modelos
 def load_models():
-    base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "trained_models"))
+    base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "trained_models", "binary"))
     
     keras_model_path = os.path.join(base_path, "logistic_regression_model.keras")
     rf_model_path = os.path.join(base_path, "random_forest_model.pkl")
@@ -66,7 +66,7 @@ def load_models():
     return keras_model, rf_model, xgb_model
 
 # Endpoint para testear modelos
-@test_router.post("/test")
+@test_binary.post("/test-binary")
 async def test_models_endpoint(file: UploadFile = File(...)):
     # Cargar los modelos
     try:
