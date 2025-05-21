@@ -9,9 +9,9 @@ from sklearn.preprocessing import LabelEncoder, label_binarize
 from scikeras.wrappers import KerasClassifier
 from tqdm import tqdm
 import joblib
-from models.classify_logistic_regression import create_model as create_logistic_model
-from models.classify_random_forest import create_model as create_rf_model
-from models.classify_xgboost import create_model as create_xgb_model
+from app.infrastructure.ml.classify.classify_logistic_regression import create_model as create_logistic_model
+from app.infrastructure.ml.classify.classify_random_forest import create_model as create_rf_model
+from app.infrastructure.ml.classify.classify_xgboost import create_model as create_xgb_model
 
 # Crear directorios para modelos entrenados y gráficos
 trained_models_dir = os.path.join(os.getcwd(), "trained_models", "classify")
@@ -21,7 +21,7 @@ graphs_dir = os.path.join(os.getcwd(), "static", "graphs", "classify")
 os.makedirs(graphs_dir, exist_ok=True)
 
 # Cargar datos
-file_path = os.path.join(os.getcwd(), 'analysis', 'split', 'emg_classify_final.csv')
+file_path = os.path.join(os.getcwd(), 'notebooks', 'split', 'emg_classify_final.csv')
 data = pd.read_csv(file_path)
 
 # Codificar gb_score: de 1,2,3 a 0,1,2

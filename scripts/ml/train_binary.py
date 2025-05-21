@@ -10,9 +10,9 @@ import xgboost as xgb
 import joblib
 from tqdm import tqdm
 from scikeras.wrappers import KerasClassifier
-from models.binary_logistic_regression import create_model as create_logistic_model
-from models.binary_random_forest import create_model as create_rf_model
-from models.binary_xgboost import create_model as create_xgb_model
+from app.infrastructure.ml.binary.binary_logistic_regression import create_model as create_logistic_model
+from app.infrastructure.ml.binary.binary_random_forest import create_model as create_rf_model
+from app.infrastructure.ml.binary.binary_xgboost import create_model as create_xgb_model
 
 trained_models_dir = os.path.join(os.getcwd(), "trained_models", "binary")
 os.makedirs(trained_models_dir, exist_ok=True)
@@ -20,7 +20,7 @@ os.makedirs(trained_models_dir, exist_ok=True)
 graphs_dir = os.path.join(os.getcwd(), "static", "graphs", "binary")
 os.makedirs(graphs_dir, exist_ok=True)
 
-file_path = os.path.join(os.getcwd(), 'analysis', 'split','emg_binary_final.csv')
+file_path = os.path.join(os.getcwd(), 'notebooks', 'split','emg_binary_final.csv')
 data = pd.read_csv(file_path)
 
 print(f"Valores únicos en gb_score: {data['gb_score'].unique()}")
