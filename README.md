@@ -21,17 +21,36 @@ The system follows a **SAGA orchestration pattern**, running sequentially to pre
 
 ### 📊 Mermaid Diagram
 ```mermaid
-flowchart LR
-    A["REST API (FastAPI)"] -- Saga orchestration pattern --> B["Random Forest (Binary)"] & C["XGBoost (Binary)"] & D["Linear Regression (Binary)"]
-    B --> E["Decision Service"]
-    C --> E
-    D --> E
-    E -- Reports result --> A
-    A -- Only if POSITIVE - SAGA --> n1["Random Forest (Classification)"] & n2["XGBoost (Classification)"] & n3["Linear Regression (Classification)"]
-    n1 --> n4["Classification Service"]
-    n2 --> n4
-    n3 --> n4
-    n4 -- Reports classification --> A
+---
+config:
+  theme: dark
+  look: classic
+  layout: fixed
+---
+flowchart TD
+ subgraph subGraph0["🧩 API REST (FastAPI)"]
+        A1["Entrada: Datos EMG"]
+        A2["Salida: Resultado diagnóstico"]
+  end
+ subgraph subGraph1["🧠 Orquestador (Caso de uso principal)"]
+        ORQ["Orquestador"]
+  end
+ subgraph subGraph2["🤖 Modelos de Detección Binaria"]
+        B1["Random Forest Binario"]
+        B2["XGBoost Binario"]
+        B3["Logistic Regression Binario"]
+  end
+ subgraph subGraph3["🧪 Modelos de Clasificación"]
+        C1["Random Forest Clasificación"]
+        C2["XGBoost Clasificación"]
+        C3["Logistic Regression Clasificación"]
+  end
+ subgraph subGraph4["🗃️ Base de Datos de Pacientes"]
+        DB["DB MySQL (consultar/guardar)"]
+  end
+    A1 --> ORQ
+    ORQ --> B1 & B2 & B3 & C1 & C2 & C3 & DB & A2
+
 ```
 
 ---
