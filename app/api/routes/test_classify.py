@@ -10,7 +10,7 @@ import joblib
 test_classify = APIRouter()
 
 def load_models():
-    base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "trained_models", "classify"))
+    base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..","..","..", "trained_models", "classify"))
     
     keras_model_path = os.path.join(base_path, "logistic_regression_model.keras")
     rf_model_path = os.path.join(base_path, "random_forest_model.pkl")

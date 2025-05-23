@@ -12,7 +12,7 @@ test_binary = APIRouter()
 
 # Función mejorada para cargar los modelos
 def load_models():
-    base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "trained_models", "binary"))
+    base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..","..","..", "trained_models", "binary"))
     
     keras_model_path = os.path.join(base_path, "logistic_regression_model.keras")
     rf_model_path = os.path.join(base_path, "random_forest_model.pkl")

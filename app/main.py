@@ -1,9 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routes.test_binary import test_binary
-from routes.train_binary import train_binary
-from routes.train_classify import train_classify
-from routes.test_classify import test_classify
+from api.routes.test_binary import test_binary
+from api.routes.train_binary import train_binary
+from api.routes.train_classify import train_classify
+from api.routes.test_classify import test_classify
 
 # Crear la aplicación FastAPI
 app = FastAPI(
