@@ -1,0 +1,9 @@
+# Ignorar todo por defecto
+**
+
+# Permitir solo lo esencial
+!app/**
+!start.sh
+!requirements.txt
+!Dockerfile
+!trained_models/**
