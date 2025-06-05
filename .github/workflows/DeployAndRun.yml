@@ -42,7 +42,7 @@ jobs:
       uses: azure/aci-deploy@v1
       with:
         location: eastus
-        app-name: mielia-container
+        name: mielia-container
         resource-group: miel-ia
         image: ${{ secrets.ACR_NAME }}/${{ env.REPO_NAME }}:${{ github.sha }}
         dns-name-label: mielia-api-${{ github.run_id }}-${{ github.run_attempt }}
