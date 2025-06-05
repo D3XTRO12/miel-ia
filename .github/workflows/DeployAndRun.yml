@@ -53,8 +53,8 @@ jobs:
         registry-username: ${{ secrets.REGISTRY_USERNAME }}
         registry-password: ${{ secrets.REGISTRY_PASSWORD }}
         ports: 8000
-        cpu: 1
-        memory: 1
+        cpu: 2
+        memory: 4
 
     - name: Logout
       run: az logout
