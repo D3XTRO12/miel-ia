@@ -25,7 +25,6 @@ The system follows a **SAGA orchestration pattern**, running sequentially to pre
 config:
   theme: dark
   look: classic
-  layout: fixed
 ---
 flowchart TD
  subgraph subGraph0["🧩 API REST (FastAPI)"]
