@@ -1,9 +1,9 @@
 from dataclasses import dataclass
-from app import db
+from app.infrastructure.db.db import Base
 from sqlalchemy import Column, Integer, String
 
 @dataclass
-class User(db.Model):
+class User(Base):
     __tablename__ = "users"
     id: int = Column(Integer, primary_key=True, index=True)
     dni: str = Column(String(20), unique=True, nullable=False)
