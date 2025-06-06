@@ -4,6 +4,7 @@ from api.routes.test_binary import test_binary
 from api.routes.train_binary import train_binary
 from api.routes.train_classify import train_classify
 from api.routes.test_classify import test_classify
+from infrastructure.db import SessionLocal
 
 # Crear la aplicación FastAPI
 app = FastAPI(
@@ -42,6 +43,12 @@ async def root():
             }
         ]
     }
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 if __name__ == "__main__":
     import uvicorn
