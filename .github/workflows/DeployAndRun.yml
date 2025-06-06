@@ -6,7 +6,10 @@ env:
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]  # Agregué trigger automático
+    branches: [ main ]  # Commented out for future use
+    branches-ignore: ['**']  # This effectively disables the push trigger while preserving it
+  # push:
+  #   branches: [ main ]  # Trigger for future use
 
 permissions:
   id-token: write
