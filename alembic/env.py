@@ -31,6 +31,7 @@ from app.infrastructure.db.dataclass.user import User
 from app.infrastructure.db.dataclass.role import Role
 from app.infrastructure.db.dataclass.user_role import UserRole
 from app.infrastructure.db.dataclass.medical_study import MedicalStudy
+from app.infrastructure.db.dataclass.file_storage import FileStorage
 
 
 target_metadata = Base.metadata
