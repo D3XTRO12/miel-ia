@@ -1,33 +1,63 @@
-from .base_repo import Create, Read, Update, Delete
-from app.infrastructure.db.builder.medical_study_builder import MedicalStudyBuilder
-from typing import List, Optional
-from app.infrastructure.db.db import SessionLocal
+from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
+from typing import Dict, Any, Optional, List
+from .base_repo import BaseRepository
+from ..db.models.medical_study import MedicalStudy
 
-class MedicalStudyRepo(Create, Read, Update, Delete):
+class MedicalStudyRepo(BaseRepository[MedicalStudy]):
     def __init__(self):
-        self.session = SessionLocal()
+        self.model = MedicalStudy
 
-    def create(self, item: MedicalStudyBuilder) -> MedicalStudyBuilder:
-        """Crea un nuevo estudio médico en la base de datos."""
-        study = item.build()
-        self.session.add(study)
-        self.session.commit()
-        self.session.refresh(study)
-        return study
+    def get(self, db: Session, *, id: int) -> Optional[MedicalStudy]:
+        return db.query(self.model).filter(self.model.id == id).first()
 
-    def read(self, item_id: int) -> Optional[MedicalStudyBuilder]:
-        """Lee un estudio médico de la base de datos por su ID."""
-        return self.session.query(MedicalStudyBuilder).filter(MedicalStudyBuilder.id == item_id).first()
+    def get_by_access_code(self, db: Session, *, access_code: str) -> Optional[MedicalStudy]:
+        return db.query(self.model).filter(self.model.access_code == access_code).first()
 
-    def update(self, item: MedicalStudyBuilder) -> MedicalStudyBuilder:
-        """Actualiza un estudio médico en la base de datos."""
-        self.session.merge(item)
-        self.session.commit()
-        return item
+    def get_all(self, db: Session, *, skip: int = 0, limit: int = 100) -> List[MedicalStudy]:
+        return db.query(self.model).order_by(self.model.id.desc()).offset(skip).limit(limit).all()
 
-    def delete(self, item_id: int) -> None:
-        """Elimina un estudio médico de la base de datos por su ID."""
-        study = self.read(item_id)
-        if study:
-            self.session.delete(study)
-            self.session.commit()
+    def create(self, db: Session, *, obj_in: Dict[str, Any]) -> MedicalStudy:
+        db_obj = self.model(**obj_in)
+        db.add(db_obj)
+        db.commit()
+        db.refresh(db_obj)
+        return db_obj
+
+    def update(self, db: Session, *, db_obj: MedicalStudy, obj_in: Dict[str, Any]) -> MedicalStudy:
+        for field, value in obj_in.items():
+            setattr(db_obj, field, value)
+        db.add(db_obj)
+        db.commit()
+        db.refresh(db_obj)
+        return db_obj
+
+    def delete(self, db: Session, *, id: int) -> MedicalStudy:
+        db_obj = db.query(self.model).get(id)
+        db.delete(db_obj)
+        db.commit()
+        return db_obj
+    
+    def find_all_studies(self, db: Session, *, skip: int = 0, limit: int = 100) -> List:
+        """Obtiene todos los estudios con paginación."""
+        return self.__medical_study_repo.get_all(db, skip=skip, limit=limit)
+
+    def find_by_patient_dni(self, db: Session, *, dni: str) -> List:
+        """Busca estudios por DNI del paciente."""
+        studies = self.__medical_study_repo.get_by_patient_dni(db, dni=dni)
+        if not studies:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No medical studies found for patient with DNI {dni}"
+            )
+        return studies
+    
+    def find_by_patient_name(self, db: Session, *, name: str) -> List:
+        """Busca estudios por nombre o apellido del paciente."""
+        studies = self.__medical_study_repo.get_by_patient_name(db, name=name)
+        if not studies:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No medical studies found for patient with name {name}"
+            )
+        return studies
