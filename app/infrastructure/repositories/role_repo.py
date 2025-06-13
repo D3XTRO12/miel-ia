@@ -1,34 +1,22 @@
-from .base_repo import Create, Read, Update, Delete
-from app.infrastructure.db.builder.role_builder import RoleBuilder
-from typing import List, Optional
-from app.infrastructure.db.db import SessionLocal
+from sqlalchemy.orm import Session
+from ...infrastructure.db.models.role import Role
+from ...infrastructure.db.DTOs.role_dto import RoleBaseDTO, RoleResponseDTO
+from ...infrastructure.repositories.base_repo import BaseRepository
+from typing import List
+class RoleRepo(BaseRepository):
+    def create(self, db: Session, obj_in):
+        raise NotImplementedError("Role creation is not allowed")
 
-class RoleRepo(Create, Read, Update, Delete):
-    def __init__(self):
-        self.session = SessionLocal()
+    def update(self, db: Session, db_obj, obj_in):
+        raise NotImplementedError("Role update is not allowed")
 
-    def create(self, item: RoleBuilder) -> RoleBuilder:
-        """Crea un nuevo rol en la base de datos."""
-        role = item.build()
-        self.session.add(role)
-        self.session.commit()
-        self.session.refresh(role)
-        return role
+    def delete(self, db: Session, db_obj):
+        raise NotImplementedError("Role deletion is not allowed")
 
-    def read(self, item_id: int) -> Optional[RoleBuilder]:
-        """Lee un rol de la base de datos por su ID."""
-        return self.session.query(RoleBuilder).filter(RoleBuilder.id == item_id).first()
+    def get_by_id(self, db: Session, id: int):
+        return db.query(Role).filter(Role.id == id).first()
+    def get(self, db: Session) -> List[Role]:
+        return db.query(Role).all()
 
-    def update(self, item: RoleBuilder) -> RoleBuilder:
-        """Actualiza un rol en la base de datos."""
-        self.session.merge(item)
-        self.session.commit()
-        return item
 
-    def delete(self, item_id: int) -> None:
-        """Elimina un rol de la base de datos por su ID."""
-        role = self.read(item_id)
-        if role:
-            self.session.delete(role)
-            self.session.commit()
-        
+    

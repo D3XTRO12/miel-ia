@@ -1,89 +1,76 @@
-
-from .base_repo import Create, Read, Update, Delete
-from app.infrastructure.db.builder.user_builder import UserBuilder
-from app.infrastructure.db.dataclass.user import User
-from typing import List, Optional
-from app.infrastructure.db.db import SessionLocal
 from sqlalchemy.orm import Session
+from typing import Dict, Any, List, Optional
+from ..db.models.user import User
+from ..repositories.base_repo import BaseRepository
 
-class UserRepo(Create, Read, Update, Delete):
+# El DTO aquí no es estrictamente necesario si los servicios manejan la conversión,
+# pero es bueno tenerlo para referencia.
+from ..db.DTOs.user_dto import UserUpdateDTO
+
+class UserRepo(BaseRepository[User]):
     def __init__(self):
-        self.session: Session = SessionLocal()
-        self.__model = User  # El modelo, no el builder
-        self.builder = UserBuilder()  # El builder como herramienta separada
-    
-    def find_all(self) -> List[User]:
-        """nos traerá todos los usuarios"""
-        try:
-            users = self.session.query(self.__model).all()
-            return users
-        except Exception as e:
-            # Rollback en caso de error
-            self.session.rollback()
-            raise Exception(f"An error occurred while trying to retrieve the users: {str(e)}")
-    
-    def find_by_id(self, user_id: int) -> Optional[User]:
+        # Asignamos el modelo de SQLAlchemy con el que trabajará este repo
+        self.model = User
+
+    def get(self, db: Session, *, id: int) -> Optional[User]:
         """Obtiene un usuario por su ID."""
-        try:
-            user = self.session.query(self.__model).filter(self.__model.id == user_id).first()
-            return user
-        except Exception as e:
-            self.session.rollback()
-            raise Exception(f"An error occurred while trying to retrieve the user with ID {user_id}: {str(e)}")
-    
-    def find_by_name(self, name: str) -> Optional[User]:
-        """Obtiene un usuario por su nombre."""
-        try:
-            user = self.session.query(self.__model).filter(self.__model.name == name).first()
-            return user
-        except Exception as e:
-            self.session.rollback()
-            raise Exception(f"An error occurred while trying to retrieve the user with name {name}: {str(e)}")
-    
-    def find_by_dni(self, dni: str) -> Optional[User]:
+        return db.query(self.model).filter(self.model.id == id).first()
+
+    def get_by_email(self, db: Session, *, email: str) -> Optional[User]:
+        """Obtiene un usuario por su email."""
+        return db.query(self.model).filter(self.model.email == email).first()
+
+    def email_exists(self, db: Session, *, email: str) -> bool:
+        """Verifica si un email ya está registrado."""
+        return db.query(self.model).filter(self.model.email == email).first() is not None
+
+    # --- MÉTODOS NUEVOS ---
+    def get_all(self, db: Session, *, skip: int = 0, limit: int = 100) -> List[User]:
+        """Obtiene una lista de todos los usuarios con paginación."""
+        return db.query(self.model).offset(skip).limit(limit).all()
+
+    def get_by_name(self, db: Session, *, name: str) -> List[User]:
+        """Obtiene una lista de usuarios por coincidencia de nombre (no sensible a mayúsculas)."""
+        return db.query(self.model).filter(self.model.name.ilike(f"%{name}%")).all()
+
+    def get_by_dni(self, db: Session, *, dni: str) -> Optional[User]:
         """Obtiene un usuario por su DNI."""
-        try:
-            user = self.session.query(self.__model).filter(self.__model.dni == dni).first()
-            return user
-        except Exception as e:
-            self.session.rollback()
-            raise Exception(f"An error occurred while trying to retrieve the user with DNI {dni}: {str(e)}")
+        return db.query(self.model).filter(self.model.dni == dni).first()
+    # --- FIN DE MÉTODOS NUEVOS ---
+
+    def create(self, db: Session, *, obj_in: Dict[str, Any]) -> User:
+        """Crea un objeto User. Asume que obj_in es un diccionario limpio."""
+        db_obj = self.model(**obj_in)
+        db.add(db_obj)
+        db.commit()
+        db.refresh(db_obj)
+        return db_obj
     
-    def create(self, item: UserBuilder) -> User:
-        """Crea un nuevo usuario."""
-        try:
-            user = item.build()
-            self.session.add(user)
-            self.session.commit()
-            self.session.refresh(user)
-            return user
-        except Exception as e:
-            # Rollback en caso de error
-            self.session.rollback()
-            raise Exception(f"An error occurred while trying to create the user: {str(e)}")
-    
-    def update(self, item: UserBuilder) -> User:
-        """Actualiza un usuario existente."""
-        try:
-            user = item.build()
-            self.session.merge(user)
-            self.session.commit()
-            return user
-        except Exception as e:
-            # Rollback en caso de error
-            self.session.rollback()
-            raise Exception(f"An error occurred while trying to update the user: {str(e)}")
-    
-    def delete(self, user_id: int) -> None:
+    def update(self, db: Session, *, db_obj: User, obj_in: UserUpdateDTO | Dict[str, Any]) -> User:
+        """Actualiza un usuario. db_obj es el objeto SQLAlchemy a actualizar."""
+        if isinstance(obj_in, dict):
+            update_data = obj_in
+        else:
+            update_data = obj_in.model_dump(exclude_unset=True)
+        
+        for field in update_data:
+            if hasattr(db_obj, field):
+                setattr(db_obj, field, update_data[field])
+        
+        db.add(db_obj)
+        db.commit()
+        db.refresh(db_obj)
+        return db_obj
+
+    def delete(self, db: Session, *, id: int) -> User:
         """Elimina un usuario por su ID."""
-        try:
-            user = self.find_by_id(user_id)
-            if user:
-                self.session.delete(user)
-                self.session.commit()
-            else:
-                raise Exception(f"User with ID {user_id} does not exist.")
-        except Exception as e:
-            # Rollback en caso de error
-            self.session.rollback()
-            raise Exception(f"An error occurred while trying to delete the user with ID {user_id}: {str(e)}")
+        user = db.query(self.model).get(id)
+        if not user:
+            # En un caso real, el servicio manejaría la excepción, pero es bueno tenerla.
+            raise ValueError("Usuario no encontrado para eliminar")
+        
+        db.delete(user)
+        db.commit()
+        # El objeto 'user' todavía contiene los datos antes de ser eliminado, 
+        # lo que puede ser útil para devolver un mensaje de confirmación.
+        return user
