@@ -11,8 +11,8 @@ from dotenv import load_dotenv
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 load_dotenv()
 # Obtener la URL desde la variable de entorno
-DATABASE_URL = os.getenv("DATABASE_URL")
-
+DATABASE_URL = os.getenv("DATABASE_URI")
+print(DATABASE_URL)
 # Actualizar configuración de Alembic dinámicamente
 config = context.config
 config.set_main_option("sqlalchemy.url", DATABASE_URL)
@@ -26,12 +26,12 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Importar Base y modelos para que Alembic los detecte
-from app.infrastructure.db.db import Base
-from app.infrastructure.db.dataclass.user import User
-from app.infrastructure.db.dataclass.role import Role
-from app.infrastructure.db.dataclass.user_role import UserRole
-from app.infrastructure.db.dataclass.medical_study import MedicalStudy
-from app.infrastructure.db.dataclass.file_storage import FileStorage
+from app.core.db import Base
+from app.infrastructure.db.models.user import User
+from app.infrastructure.db.models.role import Role
+from app.infrastructure.db.models.user_role import UserRole
+from app.infrastructure.db.models.medical_study import MedicalStudy
+from app.infrastructure.db.models.file_manager import FileStorage
 
 
 target_metadata = Base.metadata
@@ -68,10 +68,6 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode.
-
-    In this scenario we need to create an Engine
-    and associate a connection with the context.
-
     """
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
@@ -81,7 +77,9 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection,
+            target_metadata=target_metadata,
+            render_as_batch=True  # <-- ¡AÑADIR ESTA LÍNEA!
         )
 
         with context.begin_transaction():

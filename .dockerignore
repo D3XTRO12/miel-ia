@@ -7,3 +7,5 @@
 !requirements.txt
 !Dockerfile
 !trained_models/**
+!test.db
+!.env
