@@ -1,11 +1,12 @@
 fastapi==0.115.12
-uvicorn==0.34.0
+uvicorn[standard]==0.34.0
+pydantic[email]==2.11.5
 scikit-learn==1.6.1
 xgboost==3.0.0
 pandas==2.2.3
 python-dotenv==1.1.0
-flask_sqlalchemy == 3.0.5
-sqlalchemy_filters == 0.13.0
+flask_sqlalchemy==3.0.5
+sqlalchemy_filters==0.13.0
 psycopg2-binary==2.9.10
 matplotlib==3.10.1
 keras==3.9.2
@@ -16,3 +17,7 @@ tqdm==4.67.1
 python-multipart==0.0.20
 pyodbc==5.2.0
 alembic==1.16.1
+pydantic-settings==2.9.1
+bcrypt==4.3.0
+python-jose[cryptography]==3.5.0
+passlib==1.7.4

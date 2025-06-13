@@ -1,33 +1,53 @@
-from .base_repo import Create, Read, Update, Delete
-from app.infrastructure.db.builder.file_manager_builder import FileManagerBuilder
-from typing import List, Optional
-from app.infrastructure.db.db import SessionLocal
+from sqlalchemy.orm import Session
+from typing import Dict, Any, Optional
+from .base_repo import BaseRepository
+from ..db.models.file_manager import FileStorage
 
-class FileManagerRepo(Create, Read, Update, Delete):
+class FileStorageRepo(BaseRepository[FileStorage]):
+    """
+    Repositorio para las operaciones de base de datos de la entidad FileStorage.
+    Ahora implementa todos los métodos abstractos de BaseRepository.
+    """
     def __init__(self):
-        self.session = SessionLocal()
+        # Asignamos el modelo con el que este repositorio trabajará
+        self.model = FileStorage
 
-    def create(self, item: FileManagerBuilder) -> FileManagerBuilder:
-        """Crea un nuevo archivo en la base de datos."""
-        file_manager = item.build()
-        self.session.add(file_manager)
-        self.session.commit()
-        self.session.refresh(file_manager)
-        return file_manager
+    def get(self, db: Session, *, id: int) -> Optional[FileStorage]:
+        """Obtiene un registro de archivo por su ID."""
+        return db.query(self.model).filter(self.model.id == id).first()
 
-    def read(self, item_id: int) -> Optional[FileManagerBuilder]:
-        """Lee un archivo de la base de datos por su ID."""
-        return self.session.query(FileManagerBuilder).filter(FileManagerBuilder.id == item_id).first()
+    def create(self, db: Session, *, obj_in: Dict[str, Any]) -> FileStorage:
+        """
+        Crea un registro de archivo en la sesión de la base de datos.
+        No hace commit; la transacción se maneja en una capa superior.
+        """
+        db_obj = self.model(**obj_in)
+        db.add(db_obj)
+        db.flush()
+        db.refresh(db_obj)
+        return db_obj
 
-    def update(self, item: FileManagerBuilder) -> FileManagerBuilder:
-        """Actualiza un archivo en la base de datos."""
-        self.session.merge(item)
-        self.session.commit()
-        return item
+    def update(self, db: Session, *, db_obj: FileStorage, obj_in: Dict[str, Any]) -> FileStorage:
+        """
+        Actualiza un registro de archivo.
+        'db_obj' es el objeto SQLAlchemy a actualizar.
+        'obj_in' es un diccionario con los campos a actualizar.
+        """
+        for field, value in obj_in.items():
+            if hasattr(db_obj, field):
+                setattr(db_obj, field, value)
+        
+        db.add(db_obj)
+        db.flush()
+        db.refresh(db_obj)
+        return db_obj
 
-    def delete(self, item_id: int) -> None:
-        """Elimina un archivo de la base de datos por su ID."""
-        file_manager = self.read(item_id)
-        if file_manager:
-            self.session.delete(file_manager)
-            self.session.commit()
+    def delete(self, db: Session, *, id: int) -> Optional[FileStorage]:
+        """
+        Elimina un registro de archivo por su ID.
+        """
+        db_obj = self.get(db, id=id)
+        if db_obj:
+            db.delete(db_obj)
+            # El commit se debe manejar en el servicio/endpoint que llama a este método.
+        return db_obj
