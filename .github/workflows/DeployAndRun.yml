@@ -55,6 +55,7 @@ jobs:
         dns-name-label: mielia-api-${{ github.run_id }}-${{ github.run_attempt }}
         registry-username: ${{ secrets.REGISTRY_USERNAME }}
         registry-password: ${{ secrets.REGISTRY_PASSWORD }}
+        secure-environment-variables: DATABASE_URI=${{ secrets.DATABASE_URI }}
         ports: 8000
         cpu: 2
         memory: 4
