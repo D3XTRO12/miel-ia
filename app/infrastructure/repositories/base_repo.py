@@ -1,30 +1,25 @@
 from abc import ABC, abstractmethod
-from typing import TypeVar
-from sqlalchemy.ext.declarative import DeclarativeMeta
+from typing import Generic, TypeVar, Any
+from sqlalchemy.orm import Session
 
-# Usar DeclarativeMeta como bound, que es el tipo real de las clases que heredan de Base
-T = TypeVar('T', bound=DeclarativeMeta)
+T = TypeVar("T")
 
-class Create(ABC):
+class BaseRepository(ABC, Generic[T]):
+    """Interfaz base para repositorios de datos.
+    Define las operaciones CRUD básicas que deben implementarse.
+    """
     @abstractmethod
-    def create(self, item: T) -> T:
-        """Crea un nuevo registro en la base de datos."""
+    def get(self, db: Session, id: Any) -> T | None:
         pass
 
-class Read(ABC):
     @abstractmethod
-    def read(self, item_id: int) -> T:
-        """Lee un registro de la base de datos por su ID."""
+    def create(self, db: Session, *, obj_in: Any) -> T:
         pass
 
-class Update(ABC):
     @abstractmethod
-    def update(self, item: T) -> T:
-        """Actualiza un registro en la base de datos."""
+    def update(self, db: Session, *, db_obj: T, obj_in: Any) -> T:
         pass
 
-class Delete(ABC):
     @abstractmethod
-    def delete(self, item_id: int) -> None:
-        """Elimina un registro de la base de datos por su ID."""
+    def delete(self, db: Session, *, id: Any) -> T:
         pass
