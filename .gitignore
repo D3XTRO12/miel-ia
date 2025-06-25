@@ -79,7 +79,3 @@ Thumbs.db
 
 .ipynb_checkpoints/
 alembic/versions/
-previus_trainned_models/
-scripts/
-static/
-tests/
