@@ -79,3 +79,6 @@ Thumbs.db
 
 .ipynb_checkpoints/
 alembic/versions/
+
+.sonarqube/
+.scannerwork/
