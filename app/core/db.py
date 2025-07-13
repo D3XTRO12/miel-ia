@@ -1,8 +1,9 @@
-from sqlalchemy import create_engine
+from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.pool import QueuePool, StaticPool, NullPool
 from sqlalchemy import event
 from .config import settings
+
 
 
 # Configuración base del motor
@@ -18,6 +19,12 @@ if "sqlite" in db_url:
         "connect_args": {"check_same_thread": False},
         "poolclass": StaticPool  # No necesita pooling para SQLite
     })
+    # Esto permite a SQLite manejar UUIDs
+    @event.listens_for(Engine, "connect")
+    def _set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
 
 elif "mysql" in db_url or "mariadb" in db_url:
     # Configuración para MySQL/MariaDB
@@ -87,10 +94,7 @@ def check_database_connection():
     """
     try:
         with engine.connect() as conn:
-            if "sqlite" in db_url:
-                conn.execute("SELECT 1")
-            else:
-                conn.execute("SELECT 1")  # Query universal para todos los motores
+            conn.execute("SELECT 1")  # Query universal para todos los motores
         return True
     except Exception as e:
         return False
