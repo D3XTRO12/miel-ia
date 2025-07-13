@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from ..infrastructure.db.models.medical_study import MedicalStudy
 from ..infrastructure.db.models.user import User
-from fastapi import HTTPException, status
+from fastapi import HTTPException, logger, status
 from typing import List
 
 from ..infrastructure.repositories.medical_study_repo import MedicalStudyRepo
@@ -46,18 +46,29 @@ class MedicalStudyService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Medical study not found.")
         return study
     
-    def get_by_patient_dni(self, db: Session, *, dni: str) -> List[MedicalStudy]:
+    def get_by_patient_dni(self, db: Session, *, dni: str, access_code: str) -> List[MedicalStudy]:
         """
-        Busca estudios médicos por el DNI del paciente.
-        Usa un JOIN para cruzar con la tabla de usuarios.
+        Obtiene estudios por DNI del paciente con validación de código de acceso.
         """
-        return (
-            db.query(self.model)
-            .join(User, self.model.patient_id == User.id)
-            .filter(User.dni == dni)
-            .all()
-        )
+        # Validaciones de negocio
+        if not dni or not access_code:
+            raise ValueError("DNI y código de acceso son requeridos")
+        
+        # Formatear/limpiar DNI si es necesario
+        dni = dni.strip().replace("-", "").replace(".", "")
+        
+        # Llamar al repositorio
+        studies = self.__medical_study_repo.get_by_patient_dni_and_access_code(db, dni, access_code)
 
+        if not studies:
+            # Log de seguridad: intento de acceso con credenciales inválidas
+            logger.warning(f"Intento de acceso con DNI {dni} y código inválido")
+            raise HTTPException(
+                status_code=404, 
+                detail="No se encontraron estudios o credenciales inválidas"
+            )
+        
+        return studies
     def get_by_patient_name(self, db: Session, *, name: str) -> List[MedicalStudy]:
         """
         Busca estudios por nombre o apellido del paciente.

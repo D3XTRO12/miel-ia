@@ -1,25 +1,44 @@
-# services/role_service.py
-
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from typing import List
+from uuid import UUID
 from ..infrastructure.repositories.role_repo import RoleRepo
-from ..infrastructure.db.DTOs.role_dto import RoleBaseDTO as RoleDTO
 from ..infrastructure.db.models.role import Role
+from ..infrastructure.db.DTOs.role_dto import RoleBaseDTO as RoleDTO, RoleResponseDTO
 
 class RoleService:
     def __init__(self, role_repo: RoleRepo):
-        self.__role_repo = role_repo
+        self._role_repo = role_repo
 
-    def get_role(self, db: Session, role_id: int) -> RoleDTO:
-        role: Role | None = self.__role_repo.get_by_id(db, id=role_id)
+    def get_role(self, role_id: UUID) -> Role:
+        """Obtiene el rol completo por su ID"""
+        role = self._role_repo.get_by_id(role_id)
         if not role:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Role not found"
+                detail=f"Role with ID {role_id} not found"
             )
-        return RoleDTO.from_orm(role)
+        return role
 
-    def get_all_roles(self, db: Session) -> List[RoleDTO]:
-        roles = self.__role_repo.get_all(db)
-        return [RoleDTO.from_orm(role) for role in roles]
+    def get_role_name(self, role_id: UUID) -> str:
+        """Obtiene solo el nombre del rol"""
+        name = self._role_repo.get_role_name(role_id)
+        if not name:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Role with ID {role_id} not found"
+            )
+        return name
+
+    def get_all_roles(self) -> List[RoleResponseDTO]:
+        roles = self._role_repo.get_all()  # Usar get_all() en lugar de get()
+        return [RoleResponseDTO.model_validate(role) for role in roles]
+    
+    def create_role(self, name: str) -> RoleDTO:
+        if not name:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Role name is required"
+            )
+        role = self._role_repo.create(name=name)
+        return RoleDTO.model_validate(role)
