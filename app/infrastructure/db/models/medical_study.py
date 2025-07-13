@@ -1,27 +1,25 @@
-from ....core.db import Base
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Text
+from sqlalchemy import Column, String, ForeignKey, Text
+from sqlalchemy.dialects.postgresql import UUID
+from .base_model import BaseModel
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
 
-class MedicalStudy(Base):
+
+class MedicalStudy(BaseModel):
     __tablename__ = "medical_studies"
+    """Tabla para almacenar estudios médicos realizados por los usuarios"""
     
-    id = Column(Integer, primary_key=True, index=True)
     access_code = Column(String(100), nullable=False, unique=True, index=True)
     clinical_data = Column(Text, nullable=True)
-    creation_date = Column(DateTime(timezone=True), server_default=func.now())
     ml_results = Column(Text, nullable=True)
     status = Column(String(50), default="PENDING")
     
-    # Referencias a usuarios
-    doctor_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    patient_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    technician_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    # Referencias a usuarios (ahora con UUID)
+    doctor_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    patient_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    technician_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    csv_file_id = Column(UUID(as_uuid=True), ForeignKey("file_storage.id"), nullable=True)
     
-    # Referencia al archivo CSV (se añadirá en el endpoint de diagnóstico)
-    csv_file_id = Column(Integer, ForeignKey("file_storage.id"), nullable=True)
-    
-    # Relaciones para que SQLAlchemy pueda hacer joins
+    # Relaciones
     doctor = relationship("User", foreign_keys=[doctor_id])
     patient = relationship("User", foreign_keys=[patient_id])
     technician = relationship("User", foreign_keys=[technician_id])

@@ -1,13 +1,12 @@
-from ....core.db import Base
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, String
 from sqlalchemy.orm import relationship
-from sqlalchemy.ext.associationproxy import association_proxy # <-- 1. Importar
+from sqlalchemy.ext.associationproxy import association_proxy
+from .base_model import BaseModel
 
-
-
-class Role(Base):
+class Role(BaseModel):
     __tablename__ = "roles"
-    id: int = Column(Integer, primary_key=True, index=True)
+    
+    """Tabla para almacenar roles de usuario"""
     name: str = Column(String(50), unique=True, nullable=False)
     user_associations = relationship("UserRole", back_populates="role", cascade="all, delete-orphan")
     users = association_proxy("user_associations", "user")

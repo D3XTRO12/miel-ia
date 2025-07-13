@@ -1,15 +1,26 @@
-from ....core.db import Base
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, String, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.dialects.postgresql import UUID
+import uuid
+from .base_model import BaseModel
 
-class User(Base):
+class User(BaseModel):
     __tablename__ = "users"
-    id: int = Column(Integer, primary_key=True, index=True)
+    """Tabla para almacenar usuarios del sistema"""
+    
+    # Campos existentes (sin id, created_at, updated_at que vienen de BaseModel)
     dni: str = Column(String(20), unique=True, nullable=False)
     email: str = Column(String(120), unique=True, nullable=False)
     last_name: str = Column(String(100), nullable=False)
     name: str = Column(String(100), nullable=False)
     password: str = Column(String(255), nullable=False)
+    is_active: bool = Column(Boolean, default=True)
+    
+    # Relaciones
     role_associations = relationship("UserRole", back_populates="user", cascade="all, delete-orphan")
     roles = association_proxy("role_associations", "role")
+    
+    def verify_password(self, plain_password: str) -> bool:
+        from ....core.security import verify_password
+        return verify_password(plain_password, self.password)
