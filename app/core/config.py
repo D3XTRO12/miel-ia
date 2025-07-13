@@ -8,9 +8,9 @@ load_dotenv()
 
 class Settings(BaseSettings):
     # Información de la aplicación
-    APP_NAME: str = "API de Clasificación Binaria"
+    APP: str = "Miel-IA: AI POWERED DIAGNOSIS SYSTEM"
     APP_VERSION: str = "1.0.0"
-    APP_DESCRIPTION: str = "API para realizar predicciones de clasificación binaria utilizando múltiples modelos de ML"
+    APP_DESCRIPTION: str = "Miel-IA es un sistema de diagnóstico médico impulsado por IA, diseñado para ayudar a los profesionales de la salud a tomar decisiones informadas y precisas."
     
     # Configuración del servidor
     HOST: str = "0.0.0.0"
@@ -21,6 +21,11 @@ class Settings(BaseSettings):
     # Base de datos
     DATABASE_URL: str = os.getenv("DATABASE_URI")
     print(f"✅ Usando DATABASE_URI: {DATABASE_URL}")
+    
+    # Configuración de autenticación JWT
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-here")
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
     
     # CORS - Simplificado sin validators
     ALLOWED_ORIGINS: Union[str, List[str]] = "*"
@@ -89,6 +94,11 @@ class Settings(BaseSettings):
 try:
     settings = Settings()
     print("✅ Configuración cargada correctamente")
+    print(f"🌍 Entorno: {settings.ENVIRONMENT}"
+          f"\n📦 Base de datos: {settings.DATABASE_URL}"
+          f"\n🌐 CORS Orígenes: {settings.cors_origins}"
+          f"\n🔧 Modo Debug: {settings.DEBUG}"
+          f"\n🔑 Token expira en: {settings.ACCESS_TOKEN_EXPIRE_MINUTES} minutos")
 except Exception as e:
     print(f"❌ Error al cargar configuración: {e}")
     # Configuración de emergencia
@@ -98,6 +108,7 @@ except Exception as e:
         DATABASE_URL="sqlite:///./emergency.db",
         ALLOWED_ORIGINS="*",
         ALLOWED_METHODS="*",
-        ALLOWED_HEADERS="*"
+        ALLOWED_HEADERS="*",
+        ACCESS_TOKEN_EXPIRE_MINUTES=30
     )
     print("🚨 Usando configuración de emergencia")
