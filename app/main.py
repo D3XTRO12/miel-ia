@@ -14,7 +14,9 @@ from .api.routes.test_classify import test_classify
 from .api.routes.user import router as user_router
 from .api.routes.medical_study import router as medical_study_router
 from .api.routes.diagnose import router as diagnose_router
-
+from .api.v1.auth import router as auth_router
+from .api.v1.role import router as role_router
+from .api.v1.register import router as register_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -46,7 +48,7 @@ async def lifespan(app: FastAPI):
     # Shutdow
 # Crear la aplicación FastAPI
 app = FastAPI(
-    title=settings.APP_NAME,
+    title=settings.APP,
     description=settings.APP_DESCRIPTION,
     version=settings.APP_VERSION,
     debug=settings.DEBUG,
@@ -70,6 +72,10 @@ app.include_router(train_classify, tags=["Train"])
 app.include_router(user_router)
 app.include_router(medical_study_router)
 app.include_router(diagnose_router)
+app.include_router(auth_router)
+app.include_router(role_router)
+app.include_router(register_router)
+
 
 @app.get("/", tags=["Root"])
 async def root():
