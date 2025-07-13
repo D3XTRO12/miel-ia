@@ -1,6 +1,10 @@
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status
 from sqlalchemy.orm import Session
 
+from ...infrastructure.db.DTOs.auth_schema import UserOut
+from ...services.auth_service import get_auth_service, oauth2_scheme
+from ...core.db import get_db_session as get_db
+
 # Importamos el servicio orquestador y los DTOs necesarios
 from ...services.diagnose_service import DiagnoseService
 from ...infrastructure.db.DTOs.medical_study_dto import MedicalStudyResponseDTO
@@ -14,12 +18,14 @@ from ...infrastructure.repositories.user_repo import UserRepo
 
 # Importamos la dependencia de la sesión de BD
 from ...core.db import get_db_session as get_db
+from ...services.auth_service import oauth2_scheme
+from ...api.v1.auth import get_current_user
 
 router = APIRouter(prefix="/diagnose", tags=["Diagnosis"])
 
 
 # --- Inyección de Dependencias ---
-def get_diagnose_service(db: Session = Depends(get_db)) -> DiagnoseService:
+def get_diagnose_service() -> DiagnoseService:
     """
     Construye y provee el servicio de diagnóstico con todas sus dependencias.
     """
@@ -37,11 +43,11 @@ def get_diagnose_service(db: Session = Depends(get_db)) -> DiagnoseService:
 @router.post("/{study_id}", response_model=MedicalStudyResponseDTO)
 async def perform_diagnosis(
     study_id: int,
-    # En una app real, el user_id vendría de un token de autenticación
     user_id: int = Form(..., description="ID del técnico/doctor que realiza el diagnóstico."), 
     file: UploadFile = File(..., description="Archivo CSV con datos del electromiograma."),
+    db: Session = Depends(get_db),
     diagnose_service: DiagnoseService = Depends(get_diagnose_service),
-    db: Session = Depends(get_db)
+    current_user: UserOut = Depends(get_current_user)
 ):
     """
     Recibe un CSV para un estudio, ejecuta el pipeline de diagnóstico,

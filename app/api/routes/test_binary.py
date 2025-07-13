@@ -1,12 +1,16 @@
 import pdb
-from fastapi import APIRouter, UploadFile, File
+from fastapi import APIRouter, Depends, UploadFile, File
 import pandas as pd
 import pickle
 import numpy as np
 import io
 from tensorflow.keras.models import load_model
 import os
-import joblib  # Añadido para cargar modelos scikit-learn
+import joblib
+
+from app.infrastructure.db.DTOs.auth_schema import UserOut  # Añadido para cargar modelos scikit-learn
+from ...api.v1.auth import get_current_user
+
 
 test_binary = APIRouter()
 
@@ -67,7 +71,7 @@ def load_models():
 
 # Endpoint para testear modelos
 @test_binary.post("/test-binary")
-async def test_models_endpoint(file: UploadFile = File(...)):
+async def test_models_endpoint(file: UploadFile = File(...), current_user: UserOut = Depends(get_current_user)):
     # Cargar los modelos
     try:
         keras_model, rf_model, xgb_model = load_models()

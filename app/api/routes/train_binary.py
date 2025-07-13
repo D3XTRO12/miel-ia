@@ -1,11 +1,15 @@
-from fastapi import APIRouter, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, Depends
 import subprocess
 import os
+
+from app.infrastructure.db.DTOs.auth_schema import UserOut
+from ...api.v1.auth import get_current_user
+
 
 train_binary= APIRouter()
 
 @train_binary.post("/train-binary")
-def train_models(background_tasks: BackgroundTasks):
+def train_models(background_tasks: BackgroundTasks, current_user: UserOut = Depends(get_current_user)):
     # Ruta absoluta al script de entrenamiento
     train_script_path = os.path.abspath("train_binary.py")
 

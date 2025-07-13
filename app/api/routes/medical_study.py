@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 from typing import List, Optional, Union
 from enum import Enum
 
+from app.infrastructure.db.DTOs.auth_schema import UserOut
+
 from ...services.medical_study_service import MedicalStudyService
 from ...infrastructure.repositories.medical_study_repo import MedicalStudyRepo
 from ...infrastructure.db.DTOs.medical_study_dto import MedicalStudyUpdateDTO
@@ -10,6 +12,9 @@ from ...infrastructure.repositories.user_repo import UserRepo
 from ...infrastructure.db.DTOs.response import MessageResponse
 from ...infrastructure.db.DTOs.medical_study_dto import MedicalStudyCreateDTO, MedicalStudyResponseDTO
 from ...core.db import get_db_session as get_db
+from ...services.auth_service import get_auth_service
+from ...api.v1.auth import get_current_user
+
 
 class MedicalStudySearchType(str, Enum):
     ALL = "all"
@@ -20,17 +25,19 @@ class MedicalStudySearchType(str, Enum):
 router = APIRouter(prefix="/medical_studies", tags=["Medical Studies"])
 
 def get_medical_study_service(db: Session = Depends(get_db)) -> MedicalStudyService:
-    # El servicio necesita los repositorios para funcionar
-    study_repo = MedicalStudyRepo()
-    user_repo = UserRepo()
+    # Los repositorios necesitan la sesión de base de datos
+    study_repo = MedicalStudyRepo(db)
+    user_repo = UserRepo(db)
     return MedicalStudyService(medical_study_repo=study_repo, user_repo=user_repo)
+
 
 @router.post("/", response_model=MedicalStudyResponseDTO, status_code=status.HTTP_201_CREATED)
 def create_medical_study(
     study_data: MedicalStudyCreateDTO,
+    db: Session = Depends(get_db),
     study_service: MedicalStudyService = Depends(get_medical_study_service),
-    db: Session = Depends(get_db)
-):
+    current_user: UserOut = Depends(get_current_user)
+) -> MedicalStudyResponseDTO:
     """
     Crea una nueva orden de estudio médico.
     """
@@ -46,15 +53,17 @@ def search_medical_studies(
     search_type: MedicalStudySearchType = Query(..., description="Tipo de búsqueda a realizar"),
     study_id: Optional[int] = Query(None, description="ID del estudio (si search_type es 'id')"),
     patient_dni: Optional[str] = Query(None, description="DNI del paciente (si search_type es 'patient_dni')"),
+    access_code: Optional[str] = Query(None, description="Código de acceso del paciente (si search_type es 'patient_dni')"),
     patient_name: Optional[str] = Query(None, description="Nombre o apellido del paciente (si search_type es 'patient_name')"),
+    db: Session = Depends(get_db),
     study_service: MedicalStudyService = Depends(get_medical_study_service),
-    db: Session = Depends(get_db)
-):
+    current_user: UserOut = Depends(get_current_user)
+) -> Union[List[MedicalStudyResponseDTO], MedicalStudyResponseDTO]:
     """
     Búsqueda unificada de estudios médicos.
     """
     if search_type == MedicalStudySearchType.ALL:
-        return study_service.find_all_studies(db)
+        return study_service.get_all_studies(db)
     
     if search_type == MedicalStudySearchType.ID:
         if not study_id:
@@ -62,21 +71,42 @@ def search_medical_studies(
         return study_service.get_study_by_id(db, study_id=study_id)
         
     if search_type == MedicalStudySearchType.PATIENT_DNI:
-        if not patient_dni:
-            raise HTTPException(status_code=400, detail="patient_dni is required for 'patient_dni' search type")
-        return study_service.find_by_patient_dni(db, dni=patient_dni)
+        if not patient_dni or not access_code:
+            raise HTTPException(
+                status_code=400, 
+                detail="DNI del paciente y código de acceso son requeridos"
+            )
+        return study_service.get_by_patient_dni(db, dni=patient_dni, access_code=access_code)
         
     if search_type == MedicalStudySearchType.PATIENT_NAME:
         if not patient_name:
             raise HTTPException(status_code=400, detail="patient_name is required for 'patient_name' search type")
-        return study_service.find_by_patient_name(db, name=patient_name)
+        return study_service.get_by_patient_name(db, name=patient_name)
+
+@router.get("/public-search/", response_model=Union[List[MedicalStudyResponseDTO], MedicalStudyResponseDTO])
+def public_search_medical_studies(
+    patient_dni: Optional[str] = Query(None, description="DNI del paciente"),
+    access_code: Optional[str] = Query(None, description="Código de acceso del paciente"),
+    db: Session = Depends(get_db),
+    study_service: MedicalStudyService = Depends(get_medical_study_service)
+) -> Union[List[MedicalStudyResponseDTO], MedicalStudyResponseDTO]:
+    """
+    Búsqueda pública de estudios médicos.
+    """
+    if not patient_dni or not access_code:
+        raise HTTPException(
+            status_code=400,
+            detail="DNI del paciente y código de acceso son requeridos"
+        )
+    return study_service.get_by_patient_dni(db, dni=patient_dni, access_code=access_code)
 
 @router.delete("/{study_id}", response_model=MessageResponse)
 def delete_medical_study(
     study_id: int,
+    db: Session = Depends(get_db),
     study_service: MedicalStudyService = Depends(get_medical_study_service),
-    db: Session = Depends(get_db)
-):
+    current_user: UserOut = Depends(get_current_user)
+) -> MessageResponse:
     """
     Elimina un estudio médico por su ID.
     """
@@ -87,9 +117,10 @@ def delete_medical_study(
 def partial_update_study(
     study_id: int,
     study_data: MedicalStudyUpdateDTO, # El DTO con campos opcionales
+    db: Session = Depends(get_db),
     study_service: MedicalStudyService = Depends(get_medical_study_service),
-    db: Session = Depends(get_db)
-):
+    current_user: UserOut = Depends(get_current_user)
+) -> MedicalStudyResponseDTO:
     """
     Actualiza parcialmente un estudio médico existente.
     Solo envía los campos que deseas cambiar en el cuerpo de la petición.

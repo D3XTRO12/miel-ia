@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File
+from fastapi import APIRouter, Depends, UploadFile, File
 import pandas as pd
 import pickle
 import numpy as np
@@ -6,6 +6,10 @@ import io
 from tensorflow.keras.models import load_model
 import os
 import joblib
+
+from app.infrastructure.db.DTOs.auth_schema import UserOut
+from ...api.v1.auth import get_current_user
+
 
 test_classify = APIRouter()
 
@@ -30,7 +34,7 @@ def load_models():
     return keras_model, rf_model, xgb_model
 
 @test_classify.post("/test-classify")
-async def test_models_endpoint(file: UploadFile = File(...)):
+async def test_models_endpoint(file: UploadFile = File(...), current_user: UserOut = Depends(get_current_user)):
     try:
         keras_model, rf_model, xgb_model = load_models()
     except Exception as e:
