@@ -1,22 +1,43 @@
 from sqlalchemy.orm import Session
 from ...infrastructure.db.models.role import Role
-from ...infrastructure.db.DTOs.role_dto import RoleBaseDTO, RoleResponseDTO
+from typing import List, Optional, Any
+import uuid
 from ...infrastructure.repositories.base_repo import BaseRepository
-from typing import List
-class RoleRepo(BaseRepository):
-    def create(self, db: Session, obj_in):
-        raise NotImplementedError("Role creation is not allowed")
 
-    def update(self, db: Session, db_obj, obj_in):
-        raise NotImplementedError("Role update is not allowed")
+class RoleRepo(BaseRepository[Role]):
+    def __init__(self, db: Session):
+        super().__init__(Role, db)
 
-    def delete(self, db: Session, db_obj):
-        raise NotImplementedError("Role deletion is not allowed")
+    def get_by_id(self, id: uuid.UUID) -> Optional[Role]:
+        """Obtiene el rol completo por su ID"""
+        return self.db.query(self.model).filter(self.model.id == id).first()
 
-    def get_by_id(self, db: Session, id: int):
-        return db.query(Role).filter(Role.id == id).first()
-    def get(self, db: Session) -> List[Role]:
-        return db.query(Role).all()
+    def get_role_name(self, id: uuid.UUID) -> Optional[str]:
+        """Obtiene solo el nombre del rol"""
+        role = self.get_by_id(id)
+        return role.name if role else None
 
+    def get(self, db: Session = None, id: Any = None) -> List[Role]:
+        """Implementación del método abstracto get de BaseRepository"""
+        if id is not None:
+            return self.get_by_id(id)
+        return self.db.query(self.model).all()
 
-    
+    def create(self, db: Session = None, *, obj_in: Any = None, name: str = None) -> Role:
+        """Implementación del método abstracto create de BaseRepository"""
+        if name is None and obj_in is not None:
+            # Si viene un objeto, extraer el nombre
+            name = obj_in.name if hasattr(obj_in, 'name') else str(obj_in)
+        
+        if name is None:
+            raise ValueError("Name is required to create a role")
+            
+        db_obj = self.model(name=name)
+        self.db.add(db_obj)
+        self.db.commit()
+        self.db.refresh(db_obj)
+        return db_obj
+
+    def get_all(self) -> List[Role]:
+        """Método específico para obtener todos los roles"""
+        return self.db.query(self.model).all()

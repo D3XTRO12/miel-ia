@@ -1,24 +1,50 @@
 from fastapi import HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import Dict, Any, Optional, List
+
+from ..db.models.user import User
 from .base_repo import BaseRepository
 from ..db.models.medical_study import MedicalStudy
 
 class MedicalStudyRepo(BaseRepository[MedicalStudy]):
     def __init__(self):
-        self.model = MedicalStudy
+        self.__study_model = MedicalStudy
+        self.__user_model = User
 
     def get(self, db: Session, *, id: int) -> Optional[MedicalStudy]:
-        return db.query(self.model).filter(self.model.id == id).first()
+        return db.query(self.__study_model).filter(self.__study_model.id == id).first()
+
+    def get_by_patient_dni_and_access_code(self, db: Session, dni: str, access_code: str) -> List[MedicalStudy]:
+        """
+        Busca estudios médicos por DNI del paciente y código de acceso,
+        cargando eficientemente la información del doctor.
+        """
+        return (
+            db.query(self.__study_model)
+            .options(
+                # === LA LÍNEA QUE SOLUCIONA TODO ===
+                # Le dice a SQLAlchemy que cargue la relación 'doctor' en la misma consulta.
+                # Asume que tu modelo MedicalStudy tiene una relación llamada 'doctor'.
+                joinedload(self.__study_model.doctor)
+            )
+            # El join con el paciente sigue siendo necesario para poder filtrar por DNI.
+            .join(self.__user_model, self.__study_model.patient_id == self.__user_model.id)
+            .filter(
+                self.__user_model.dni == dni,
+                self.__study_model.access_code == access_code
+            )
+            .all()
+        )
+
 
     def get_by_access_code(self, db: Session, *, access_code: str) -> Optional[MedicalStudy]:
-        return db.query(self.model).filter(self.model.access_code == access_code).first()
+        return db.query(self.__study_model).filter(self.__study_model.access_code == access_code).first()
 
     def get_all(self, db: Session, *, skip: int = 0, limit: int = 100) -> List[MedicalStudy]:
-        return db.query(self.model).order_by(self.model.id.desc()).offset(skip).limit(limit).all()
+        return db.query(self.__study_model).order_by(self.__study_model.id.desc()).offset(skip).limit(limit).all()
 
     def create(self, db: Session, *, obj_in: Dict[str, Any]) -> MedicalStudy:
-        db_obj = self.model(**obj_in)
+        db_obj = self.__study_model(**obj_in)
         db.add(db_obj)
         db.commit()
         db.refresh(db_obj)
@@ -38,26 +64,3 @@ class MedicalStudyRepo(BaseRepository[MedicalStudy]):
         db.commit()
         return db_obj
     
-    def find_all_studies(self, db: Session, *, skip: int = 0, limit: int = 100) -> List:
-        """Obtiene todos los estudios con paginación."""
-        return self.__medical_study_repo.get_all(db, skip=skip, limit=limit)
-
-    def find_by_patient_dni(self, db: Session, *, dni: str) -> List:
-        """Busca estudios por DNI del paciente."""
-        studies = self.__medical_study_repo.get_by_patient_dni(db, dni=dni)
-        if not studies:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"No medical studies found for patient with DNI {dni}"
-            )
-        return studies
-    
-    def find_by_patient_name(self, db: Session, *, name: str) -> List:
-        """Busca estudios por nombre o apellido del paciente."""
-        studies = self.__medical_study_repo.get_by_patient_name(db, name=name)
-        if not studies:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"No medical studies found for patient with name {name}"
-            )
-        return studies

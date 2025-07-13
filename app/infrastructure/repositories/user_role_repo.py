@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import List, Optional
 from ...infrastructure.db.models.user_role import UserRole
 from ...infrastructure.db.DTOs.user_role_dto import (
     UserRoleCreateDTO,
@@ -17,9 +17,13 @@ class UserRoleRepo(BaseRepository[UserRole]):
         db.commit()
         db.refresh(db_user_role)
         return db_user_role
+    
+    def get_by_user_id(self, db: Session, user_id: int) -> List[UserRole]: # Use your actual ORM model type
+        """Obtiene todas las asignaciones de rol para un user_id dado."""
+        return db.query(UserRole).filter(UserRole.user_id == user_id).all()
 
     def update(self, db: Session, *, db_obj: UserRole, obj_in: UserRoleUpdateDTO) -> UserRole:
-        update_data = obj_in.dict(exclude_unset=True)
+        update_data = obj_in.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(db_obj, field, value)
         db.add(db_obj)
