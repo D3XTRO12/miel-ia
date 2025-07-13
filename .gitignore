@@ -82,3 +82,9 @@ alembic/versions/
 
 .sonarqube/
 .scannerwork/
+tests/
+static/
+notebooks/
+json_responses/
+previus_trainned_models/
+scripts/
