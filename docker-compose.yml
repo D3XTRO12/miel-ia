@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  miel-ia:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - DATABASE_URI=${DATABASE_URI:-sqlite:///./test.db}
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-key}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+    volumes:
+      # Montar código para desarrollo (opcional)
+      - ./app:/app/app:ro
+      - ./trained_models:/app/trained_models:ro
+      # Mantener base de datos persistente
+      - ./test.db:/app/test.db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Opción alternativa: MySQL local para pruebas
+  mysql-local:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: mielia
+      MYSQL_USER: mielia_user
+      MYSQL_PASSWORD: mielia_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: unless-stopped
+    profiles: ["mysql"]  # Solo se inicia si especificas --profile mysql
+
+volumes:
+  mysql_data:
