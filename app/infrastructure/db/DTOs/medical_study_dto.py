@@ -1,9 +1,12 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
 from datetime import datetime
 from uuid import UUID
 from .user_dto import DoctorInfoDTO, PatientInfoDTO
 from .base_dto import BaseDTO
+
+# Si no existe TechnicianInfoDTO, usar DoctorInfoDTO (son iguales)
+TechnicianInfoDTO = DoctorInfoDTO
 
 class MedicalStudyCreateDTO(BaseDTO):
     access_code: str = Field(..., description="Código de acceso único")
@@ -23,10 +26,18 @@ class MedicalStudyUpdateDTO(BaseDTO):
     csv_file_id: Optional[UUID] = None
 
 class MedicalStudyResponseDTO(BaseDTO):
+    model_config = ConfigDict(from_attributes=True)  # ← CRÍTICO: Esto faltaba
+    
     id: UUID
     access_code: str
     status: str
-    creation_date: datetime
-    ml_results: Optional[str]
+    creation_date: Optional[datetime] = Field(default=None, alias="created_at")
+    ml_results: Optional[str] = None
+    clinical_data: Optional[str] = None
+    csv_file_id: Optional[UUID] = None  # ← AGREGAR ESTA LÍNEA
+
+    
+    # Información de usuarios
     patient: PatientInfoDTO
     doctor: Optional[DoctorInfoDTO] = None
+    technician: Optional[TechnicianInfoDTO] = None  # ← Faltaba el técnico

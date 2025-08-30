@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 from typing import Optional, List
-from pydantic import EmailStr, Field, field_validator
+from pydantic import EmailStr, Field, field_validator, ConfigDict
 from uuid import UUID
 from .role_dto import RoleBaseDTO as RoleDTO
 from .base_dto import BaseDTO
@@ -49,6 +49,8 @@ class UserResponseDTO(UserBaseDTO):
     dni: str
     name: str
     last_name: Optional[str]
+    created_at: datetime
+    updated_at: Optional[datetime]
     roles: List[RoleDTO] = Field(default_factory=list)
 
 class UserLoginDTO(BaseDTO):
@@ -71,14 +73,30 @@ class UserCreateInternal(BaseDTO):
     dni: str
     password: str
 
+# ✅ DTOs de información específica con configuración para mapeo automático
 class PatientInfoDTO(BaseDTO):
+    model_config = ConfigDict(from_attributes=True)
+    
     id: UUID
     name: str
     last_name: str
     dni: str
+    email: Optional[EmailStr] = None  # ← Hacer opcional por si no está disponible
 
 class DoctorInfoDTO(BaseDTO):
+    model_config = ConfigDict(from_attributes=True)
+    
     id: UUID
     name: str
     last_name: str
     dni: str
+    email: Optional[EmailStr] = None  # ← Hacer opcional por si no está disponible
+
+class TechnicianInfoDTO(BaseDTO):
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: UUID
+    name: str
+    last_name: str
+    dni: str
+    email: Optional[EmailStr] = None  # ← Hacer opcional por si no está disponible

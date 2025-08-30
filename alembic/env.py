@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 load_dotenv()
 # Obtener la URL desde la variable de entorno
-DATABASE_URL = os.getenv("DATABASE_URI")
+DATABASE_URL = os.getenv("DATABASE_URL")
 print(DATABASE_URL)
 # Actualizar configuración de Alembic dinámicamente
 config = context.config

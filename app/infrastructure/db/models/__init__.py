@@ -3,3 +3,4 @@ from .user import User
 from .user_role import UserRole
 from .role import Role
 from .file_manager import FileStorage
+from .base_model import Base

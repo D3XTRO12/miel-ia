@@ -13,9 +13,10 @@ from core.db import get_db_session as get_db
 
 router = APIRouter(prefix="/temp-roles", tags=["Temporary Role Creation"])
 def get_role_service(db: Session = Depends(get_db)) -> RoleService:
-    role_repo = RoleRepo()  # Sin pasar la sesión
+    role_repo = RoleRepo(db)  # Sin pasar la sesión
     role_repo.db = db      # Asignamos después (funciona por el setter)
     return RoleService(role_repo)
+
 
 @router.post(
     "/create",
@@ -23,20 +24,20 @@ def get_role_service(db: Session = Depends(get_db)) -> RoleService:
     status_code=status.HTTP_201_CREATED,
     description="TEMPORARY ENDPOINT - Only for initial role creation",
     include_in_schema=True
-    
 )
 async def create_temp_role(
     role_data: RoleBaseDTO,
     role_service: RoleService = Depends(get_role_service),
+    # current_user: UserOut = Depends(get_current_user),
     db: Session = Depends(get_db),
-    current_user: UserOut = Depends(get_current_user)
 ):
     """
     TEMPORARY ENDPOINT - Creates a new role with UUID.
-    This will be removed after initial setup.
     """
     try:
-        return role_service.create_role(db, name=role_data.name)
+
+        return role_service.create_role(role_data.name)
+        
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -46,21 +47,21 @@ async def create_temp_role(
 async def get_all_roles(
     role_service: RoleService = Depends(get_role_service),
     db: Session = Depends(get_db),
-    current_user: UserOut = Depends(get_current_user)
+    # current_user: UserOut = Depends(get_current_user)
 
 ):
     """
     Obtiene todos los roles registrados en el sistema con sus UUIDs.
     Útil para obtener los IDs de roles como 'admin', 'doctor', etc.
     """
-    return role_service.get_all_roles(db)
+    return role_service.get_all_roles()
 
 @router.get("/{role_id}", response_model=str)
 async def get_role_name_by_id(
     role_id: UUID,
     role_service: RoleService = Depends(get_role_service),
     db: Session = Depends(get_db),
-    current_user: UserOut = Depends(get_current_user)
+    # current_user: UserOut = Depends(get_current_user)
 ):
     """
     Obtiene SOLO el nombre de un rol específico por su UUID.

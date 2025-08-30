@@ -12,7 +12,8 @@ from ...services.role_service import RoleService
 from ...services.user_role_service import UserRoleService
 from ...infrastructure.repositories.role_repo import RoleRepo
 from ...infrastructure.repositories.user_role_repo import UserRoleRepo
-
+from ...core.config import settings
+from jose import jwt
 from ...core.db import get_db_session as get_db
 from ...services.auth_service import AuthService, get_auth_service, oauth2_scheme
 from ...infrastructure.repositories.user_repo import UserRepo
@@ -76,6 +77,7 @@ async def register_user(
     user_service: UserService = Depends(get_user_service),
     user_role_service: UserRoleService = Depends(get_user_role_service),
     role_service: RoleService = Depends(get_role_service),
+    # current_user: UserOut = Depends(get_current_user)
 ):
     """Registrar un nuevo usuario"""
     try:
@@ -103,8 +105,46 @@ async def register_user(
             detail=f"An unexpected error occurred: {str(e)}"
         )
 
-@router.get("/me", response_model=UserOut)
-async def read_users_me(
-    current_user: UserOut = Depends(get_current_user)
-):
-    return current_user
+@router.get("/me/test-token", include_in_schema=settings.ENVIRONMENT == "development")
+async def test_token_decoding(token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)):
+    if settings.ENVIRONMENT != "development":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This endpoint is only available in development environment"
+        )
+    """
+    Endpoint de prueba para verificar la decodificación del token JWT.
+    Devuelve el payload completo del token decodificado.
+    SOLO PARA USO EN DESARROLLO/TESTING.
+    """
+    try:
+        # Decodificar el token manualmente para ver todo el contenido
+        decoded_token = jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM]
+        )
+        
+        # Opcional: Verificar que el usuario existe en la base de datos
+        auth_service = get_auth_service(db)
+        user = auth_service.get_current_user(db, token)
+        
+        return {
+            "decoded_token": decoded_token,
+            "user_exists": user is not None,
+            "user_info": {
+                "email": user.email,
+                "id": user.id
+            } if user else None
+        }
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token expired"
+        )
+    except jwt.JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token"
+        )

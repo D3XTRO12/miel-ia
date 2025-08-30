@@ -1,9 +1,10 @@
+from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional, Union
 from enum import Enum
 
-from app.infrastructure.db.DTOs.auth_schema import UserOut
+from ...infrastructure.db.DTOs.auth_schema import UserOut
 
 from ...services.medical_study_service import MedicalStudyService
 from ...infrastructure.repositories.medical_study_repo import MedicalStudyRepo
@@ -26,7 +27,7 @@ router = APIRouter(prefix="/medical_studies", tags=["Medical Studies"])
 
 def get_medical_study_service(db: Session = Depends(get_db)) -> MedicalStudyService:
     # Los repositorios necesitan la sesión de base de datos
-    study_repo = MedicalStudyRepo(db)
+    study_repo = MedicalStudyRepo()
     user_repo = UserRepo(db)
     return MedicalStudyService(medical_study_repo=study_repo, user_repo=user_repo)
 
@@ -102,7 +103,7 @@ def public_search_medical_studies(
 
 @router.delete("/{study_id}", response_model=MessageResponse)
 def delete_medical_study(
-    study_id: int,
+    study_id: UUID,
     db: Session = Depends(get_db),
     study_service: MedicalStudyService = Depends(get_medical_study_service),
     current_user: UserOut = Depends(get_current_user)

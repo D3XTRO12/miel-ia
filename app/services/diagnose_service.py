@@ -2,6 +2,7 @@ import json
 import pathlib # Para manejar extensiones de archivo fácilmente
 from sqlalchemy.orm import Session
 from fastapi import UploadFile, HTTPException, status
+from uuid import UUID
 from .medical_study_service import MedicalStudyService
 from .file_manager_service import FileStorageService
 from ..infrastructure.db.DTOs.medical_study_dto import MedicalStudyUpdateDTO
@@ -12,9 +13,15 @@ class DiagnoseService:
         self.__study_service = study_service
         self.__file_service = file_service
 
-    async def run_diagnosis_workflow(self, db: Session, study_id: int, file: UploadFile, user_id: int):
+    async def run_diagnosis_workflow(self, db: Session, study_id: UUID, file: UploadFile, user_id: UUID):
         # 1. Validar que el estudio exista y esté pendiente
-        study = self.__study_service.get_study_by_id(db, study_id=study_id)
+        study = self.__study_service.get_by_id(db, study_id=study_id)  # ← CAMBIO: usar get_by_id en lugar de get_study_by_id
+        if not study:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Medical study with ID {study_id} not found."
+            )
+            
         if study.status != "PENDING":
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -23,7 +30,9 @@ class DiagnoseService:
 
         # 2. Generar el nuevo nombre de archivo personalizado
         patient = study.patient # SQLAlchemy carga la relación automáticamente
-        study_date_str = study.creation_date.strftime('%Y%m%d')
+        
+        # Obtener la fecha de creación del estudio correctamente
+        study_date_str = study.creation_date.strftime('%Y%m%d') if study.creation_date else study.created_at.strftime('%Y%m%d')
         original_extension = pathlib.Path(file.filename).suffix
         new_filename = f"{patient.id}_{patient.name}_{patient.last_name}_{study_date_str}{original_extension}".replace(" ", "_")
         

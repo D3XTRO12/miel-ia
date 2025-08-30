@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status
 from sqlalchemy.orm import Session
+from uuid import UUID
 
 from ...infrastructure.db.DTOs.auth_schema import UserOut
 from ...services.auth_service import get_auth_service, oauth2_scheme
@@ -39,11 +40,11 @@ def get_diagnose_service() -> DiagnoseService:
         )
     )
 
-# --- Endpoint de Diagnóstico ---
+# --- Endpoint de Diagnóstico CORREGIDO ---
 @router.post("/{study_id}", response_model=MedicalStudyResponseDTO)
 async def perform_diagnosis(
-    study_id: int,
-    user_id: int = Form(..., description="ID del técnico/doctor que realiza el diagnóstico."), 
+    study_id: UUID,  # ← CAMBIO: De int a UUID
+    user_id: UUID = Form(..., description="ID del técnico/doctor que realiza el diagnóstico."),  # ← CAMBIO: De int a UUID
     file: UploadFile = File(..., description="Archivo CSV con datos del electromiograma."),
     db: Session = Depends(get_db),
     diagnose_service: DiagnoseService = Depends(get_diagnose_service),
@@ -54,7 +55,7 @@ async def perform_diagnosis(
     guarda el archivo y actualiza el estudio con los resultados.
     Toda la operación es una única transacción atómica.
     """
-    if not file.filename.endswith(('.csv', '.CSV')):
+    if not file.filename or not file.filename.endswith(('.csv', '.CSV')):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid file type. Only CSV files are allowed."

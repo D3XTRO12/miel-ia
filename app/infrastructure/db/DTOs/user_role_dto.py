@@ -17,5 +17,7 @@ class UserRoleUpdateDTO(BaseDTO):
 
 class UserRoleResponseDTO(UserRoleBaseDTO):
     id: UUID
+    role_id: UUID
+    
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

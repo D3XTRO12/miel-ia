@@ -1,3 +1,4 @@
+import uuid
 from sqlalchemy.orm import Session
 from typing import Dict, Any, List, Optional
 from ..db.models.user import User
@@ -9,10 +10,10 @@ from ..db.DTOs.user_dto import UserUpdateDTO, UserCreateDTO
 
 class UserRepo(BaseRepository[User]):
     def __init__(self, db: Session = None):
-          # Ahora es opcional
         super().__init__(User, db)
-    # Métodos existentes (se mantienen igual)
-    def get(self, db: Session, *, id: int) -> Optional[User]:
+    
+    def get(self, db: Session, *, id: uuid.UUID) -> Optional[User]:
+        """Obtiene un usuario por UUID"""
         return db.query(self.model).filter(self.model.id == id).first()
 
     def get_by_email(self, db: Session, *, email: str) -> Optional[User]:
@@ -30,7 +31,10 @@ class UserRepo(BaseRepository[User]):
     def get_by_dni(self, db: Session, *, dni: str) -> Optional[User]:
         return db.query(self.model).filter(self.model.dni == dni).first()
 
-    # Método create actualizado para hashear la contraseña
+    def dni_exists(self, db: Session, *, dni: str) -> bool:
+        """Verifica si existe un usuario con el DNI dado."""
+        return db.query(self.model).filter(self.model.dni == dni).first() is not None
+
     def create(self, db: Session, *, obj_in: UserCreateDTO | Dict[str, Any]) -> User:
         if isinstance(obj_in, dict):
             create_data = obj_in
@@ -45,11 +49,21 @@ class UserRepo(BaseRepository[User]):
         db.add(db_obj)
         db.commit()
         db.refresh(db_obj)
-        print(f"🔍 [DEBUG] Contraseña original: {create_data['password']}")
-        print(f"🔍 [DEBUG] Hash generado: {create_data['password']}")  # Debería mostrar el hash
         return db_obj
+    
+    def get_users_by_role_id(self, db: Session, role_id: uuid.UUID) -> List[User]:
+        """
+        Obtiene todos los usuarios que tienen un rol específico usando JOIN.
+        """
+        from ..db.models.user_role import UserRole
 
-    # Método update actualizado para manejar contraseñas
+        return (
+            db.query(User)
+            .join(UserRole, User.id == UserRole.user_id)
+            .filter(UserRole.role_id == role_id)
+            .all()
+        )
+
     def update(self, db: Session, *, db_obj: User, obj_in: UserUpdateDTO | Dict[str, Any]) -> User:
         if isinstance(obj_in, dict):
             update_data = obj_in
@@ -69,9 +83,9 @@ class UserRepo(BaseRepository[User]):
         db.refresh(db_obj)
         return db_obj
 
-    # Método delete se mantiene igual
-    def delete(self, db: Session, *, id: int) -> User:
-        user = db.query(self.model).get(id)
+    def delete(self, db: Session, *, id: uuid.UUID) -> User:
+        """Elimina un usuario por UUID"""
+        user = db.query(self.model).filter(self.model.id == id).first()
         if not user:
             raise ValueError("Usuario no encontrado para eliminar")
         
@@ -79,14 +93,14 @@ class UserRepo(BaseRepository[User]):
         db.commit()
         return user
 
-    # Nuevo método para autenticación
     def authenticate(self, db: Session, *, email: str, password: str) -> Optional[User]:
         user = self.get_by_email(db, email=email)
         if not user:
             return None
-        # Añade logs para depuración
-        print(f"🔍 [REPO DEBUG] Contraseña ingresada: {password}")
-        print(f"🔍 [REPO DEBUG] Hash almacenado: {user.password}")
-        if not verify_password(password, user.password):  # <- Asegúrate de pasar la contraseña plana
+        if not verify_password(password, user.password):
             return None
         return user
+    
+    def get_multiple_by_ids(self, db: Session, user_ids: List[uuid.UUID]) -> List[User]:
+        """Obtiene múltiples usuarios por sus UUIDs"""
+        return db.query(User).filter(User.id.in_(user_ids)).all()

@@ -1,9 +1,17 @@
 # app/services/auth_service.py
 from datetime import timedelta
+from typing import List
 from jose import JWTError
 from sqlalchemy.orm import Session
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+
+from app.api.v1.register import get_user_role_service, get_user_service
+
+from ..infrastructure.db.DTOs.user_role_dto import UserRoleResponseDTO
+
+from ..services.user_role_service import UserRoleService
+from ..services.user_service import UserService
 from ..core.security import create_access_token, decode_access_token, get_password_hash, verify_password
 from ..core.config import settings
 from ..infrastructure.repositories.user_repo import UserRepo
@@ -13,45 +21,37 @@ from ..core.db import get_db_session
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/auth/login")
 
 class AuthService:
-    def __init__(self, user_repo: UserRepo):
+    def __init__(self, user_repo: UserRepo, user_service: UserService, user_role_service: UserRoleService):
         self.__user_repo = user_repo
+        self.__user_service = user_service
+        self.__user_role_service = user_role_service
 
     def login(self, db: Session, user_login: UserLogin) -> Token:
-        print(f"🔍 [DEBUG] Intentando login con email: {user_login.email}")
-        
-        # Verificar si el usuario existe
-        user_by_email = self.__user_repo.get_by_email(db, email=user_login.email)
-        print(f"🔍 [DEBUG] Usuario encontrado por email: {user_by_email is not None}")
-        
-        if user_by_email:
-            print(f"🔍 [DEBUG] Usuario ID: {user_by_email.id}")
-            print(f"🔍 [DEBUG] Hash almacenado: {user_by_email.password[:20]}...")
-            
-            # Verificar contraseña manualmente
-            stored_hash = user_by_email.password
-            input_password = user_login.password
-            print(f"🔍 [DEBUG] Contraseña ingresada: {input_password}")
-            print(f"🔍 [DEBUG] Hash almacenado: {stored_hash}")
-            print(f"🔍 [DEBUG] Hash generado ahora: {get_password_hash(input_password)}")  # Añade esta línea
-            password_valid = verify_password(input_password, stored_hash)
-            print(f"🔍 [DEBUG] Contraseña válida: {password_valid}")
-        
-        # Usar el método authenticate que ya existe en UserRepo
+        # Autenticación básica primero
         user = self.__user_repo.authenticate(db, email=user_login.email, password=user_login.password)
-        print(f"🔍 [DEBUG] Resultado authenticate: {user is not None}")
-        
         if not user:
-            print(f"❌ [DEBUG] Fallo en autenticación")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect email or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+
+        # Obtener usuario completo a través del UserService
+        user_dto = self.__user_service.find_by_email(db, user_login.email)
         
-        print(f"✅ [DEBUG] Login exitoso para usuario: {user.email}")
+        # Obtener roles a través del UserRoleService
+        user_roles: List[UserRoleResponseDTO] = self.__user_role_service.get_user_roles_by_user_id(db, user_dto.id)
+        
+        # Preparar datos para el token
+        token_data = {
+            "sub": user.email,
+            "user_id": str(user_dto.id),  # Convertir UUID a string
+            "roles": [str(role.role_id) for role in user_roles]  # Convertir cada role_id a string
+        }
+
         access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
-            data={"sub": user.email},
+            data=token_data,
             expires_delta=access_token_expires
         )
         return Token(access_token=access_token, token_type="bearer")
@@ -76,7 +76,12 @@ class AuthService:
         if user is None:
             raise credentials_exception
         return user
+    
 
-def get_auth_service(db: Session = Depends(get_db_session)) -> AuthService:
-    user_repo = UserRepo(db)  # Pasamos la sesión al constructor
-    return AuthService(user_repo)
+def get_auth_service(
+    db: Session = Depends(get_db_session),
+    user_service: UserService = Depends(get_user_service),
+    user_role_service: UserRoleService = Depends(get_user_role_service)
+) -> AuthService:
+    user_repo = UserRepo(db)
+    return AuthService(user_repo, user_service, user_role_service)
