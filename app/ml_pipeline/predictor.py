@@ -1,12 +1,13 @@
 import os
+import numpy as np
 from joblib import load
-from tensorflow.keras.models import load_model  # Importación añadida
+from tensorflow.keras.models import load_model
 import pandas as pd
 
 class MLPredictor:
     """
     Clase que carga todos los modelos de ML en memoria una sola vez (Singleton)
-    y proporciona métodos para realizar predicciones.
+    y proporciona métodos para realizar predicciones con probabilidades.
     """
     def __init__(self):
         try:
@@ -16,12 +17,12 @@ class MLPredictor:
             # Carga modelos binarios
             self.binary_rf = load(os.path.join(base_path, "binary", "random_forest_model.pkl"))
             self.binary_xgb = load(os.path.join(base_path, "binary", "xgboost_model.pkl"))
-            self.binary_log = load_model(os.path.join(base_path, "binary", "logistic_regression_model.keras"))  # Cambiado
+            self.binary_log = load_model(os.path.join(base_path, "binary", "logistic_regression_model.keras"))
 
             # Carga modelos de clasificación
             self.classify_rf = load(os.path.join(base_path, "classify", "random_forest_model.pkl"))
             self.classify_xgb = load(os.path.join(base_path, "classify", "xgboost_model.pkl"))
-            self.classify_log = load_model(os.path.join(base_path, "classify", "logistic_regression_model.keras"))  # Cambiado
+            self.classify_log = load_model(os.path.join(base_path, "classify", "logistic_regression_model.keras"))
             
             print("✅ Modelos de ML cargados en memoria exitosamente.")
         except FileNotFoundError as e:
@@ -31,25 +32,109 @@ class MLPredictor:
             print(f"❌ ERROR CRÍTICO: Ocurrió un error inesperado al cargar los modelos: {e}")
             raise
 
+    def _get_binary_probabilities(self, model, df: pd.DataFrame, model_type: str):
+        """Obtiene probabilidades para modelos binarios."""
+        if model_type == "keras":
+            # Para Keras, predict devuelve probabilidades directamente
+            probs = model.predict(df, verbose=0)
+            return probs.flatten()
+        else:
+            # Para sklearn, usar predict_proba
+            if hasattr(model, 'predict_proba'):
+                probs = model.predict_proba(df)
+                # Para binario, tomar probabilidad de clase positiva (índice 1)
+                return probs[:, 1]
+            else:
+                # Fallback para modelos sin predict_proba
+                return model.predict(df).flatten()
+
+    def _get_multiclass_probabilities(self, model, df: pd.DataFrame, model_type: str):
+        """Obtiene probabilidades para modelos multiclase."""
+        if model_type == "keras":
+            # Para Keras, predict devuelve todas las probabilidades
+            probs = model.predict(df, verbose=0)
+            return probs  # Retorna array 2D: [n_samples, n_classes]
+        else:
+            # Para sklearn, usar predict_proba
+            if hasattr(model, 'predict_proba'):
+                return model.predict_proba(df)
+            else:
+                # Fallback: convertir predicciones discretas a one-hot
+                preds = model.predict(df)
+                n_classes = 3  # Asumiendo 3 clases (0, 1, 2)
+                one_hot = np.zeros((len(preds), n_classes))
+                for i, pred in enumerate(preds):
+                    one_hot[i, int(pred)] = 1.0
+                return one_hot
+
     def predict_binary(self, df: pd.DataFrame) -> dict:
         """Realiza predicciones con el ensamblaje de modelos binarios."""
         df_single_row = df.head(1)
+        
+        # Obtener probabilidades para cada modelo
+        rf_probs = self._get_binary_probabilities(self.binary_rf, df_single_row, "sklearn")
+        xgb_probs = self._get_binary_probabilities(self.binary_xgb, df_single_row, "sklearn")
+        keras_probs = self._get_binary_probabilities(self.binary_log, df_single_row, "keras")
+        
+        # Predicciones discretas basadas en umbral 0.5
+        rf_pred = int(rf_probs[0] > 0.5)
+        xgb_pred = int(xgb_probs[0] > 0.5)
+        keras_pred = int(keras_probs[0] > 0.5)
+        
+        # Calcular confianza del ensemble (promedio de probabilidades)
+        ensemble_confidence = float(np.mean([rf_probs[0], xgb_probs[0], keras_probs[0]]))
+        
         return {
-            # LA CORRECCIÓN: .flatten()[0] asegura que obtengamos un escalar
-            # sin importar si el output es [1] o [[1]].
-            "rf": int(self.binary_rf.predict(df_single_row).flatten()[0]),
-            "xgb": int(self.binary_xgb.predict(df_single_row).flatten()[0]),
-            "log": int(self.binary_log.predict(df_single_row).flatten()[0]),
+            "predictions": {
+                "Random_Forest": rf_pred,
+                "XGBoost": xgb_pred,
+                "TensorFlow_Logistic_Regression": keras_pred,
+            },
+            "probabilities": {
+                "Random_Forest_preds": rf_probs.tolist(),
+                "XGBoost_preds": xgb_probs.tolist(),
+                "TensorFlow_Logistic_Regression_preds": keras_probs.tolist(),
+            },
+            "ensemble_confidence": ensemble_confidence
         }
 
     def predict_classify(self, df: pd.DataFrame) -> dict:
         """Realiza predicciones con el ensamblaje de modelos de clasificación."""
         df_single_row = df.head(1)
+        
+        # Obtener probabilidades para cada modelo
+        rf_probs = self._get_multiclass_probabilities(self.classify_rf, df_single_row, "sklearn")
+        xgb_probs = self._get_multiclass_probabilities(self.classify_xgb, df_single_row, "sklearn")
+        keras_probs = self._get_multiclass_probabilities(self.classify_log, df_single_row, "keras")
+        
+        # Predicciones discretas (clase con mayor probabilidad)
+        rf_pred = int(np.argmax(rf_probs[0]))
+        xgb_pred = int(np.argmax(xgb_probs[0]))
+        keras_pred = int(np.argmax(keras_probs[0]))
+        
+        # Determinar clase más votada
+        predictions = [rf_pred, xgb_pred, keras_pred]
+        predicted_class = max(set(predictions), key=predictions.count)
+        
+        # Calcular confianza para la clase predicha
+        rf_conf = rf_probs[0][predicted_class]
+        xgb_conf = xgb_probs[0][predicted_class]
+        keras_conf = keras_probs[0][predicted_class]
+        ensemble_confidence = float(np.mean([rf_conf, xgb_conf, keras_conf]))
+        
         return {
-            # LA CORRECCIÓN: .flatten()[0] se aplica aquí también.
-            "rf": int(self.classify_rf.predict(df_single_row).flatten()[0]),
-            "xgb": int(self.classify_xgb.predict(df_single_row).flatten()[0]),
-            "log": int(self.classify_log.predict(df_single_row).flatten()[0]),
+            "predictions": {
+                "Random_Forest": rf_pred,
+                "XGBoost": xgb_pred,
+                "TensorFlow_Logistic_Regression": keras_pred,
+            },
+            "probabilities": {
+                "Random_Forest_preds": rf_probs.tolist(),
+                "XGBoost_preds": xgb_probs.tolist(),
+                "TensorFlow_Logistic_Regression_preds": keras_probs.tolist(),
+            },
+            "predicted_class": predicted_class,
+            "ensemble_confidence": ensemble_confidence
         }
 
 # --- Instancia Única (Singleton) ---
