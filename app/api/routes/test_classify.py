@@ -46,7 +46,7 @@ async def test_models_endpoint(file: UploadFile = File(...), current_user: UserO
     except Exception as e:
         return {"error": f"Error al procesar el archivo CSV: {str(e)}"}
 
-    feature_columns = [  # Igual que antes, listado completo
+    feature_columns = [  
         'standard_deviation_e1', 'standard_deviation_e2', 'standard_deviation_e3', 'standard_deviation_e4',
         'standard_deviation_e5', 'standard_deviation_e6', 'standard_deviation_e7', 'standard_deviation_e8',
         'root_mean_square_e1', 'root_mean_square_e2', 'root_mean_square_e3', 'root_mean_square_e4',
@@ -81,9 +81,9 @@ async def test_models_endpoint(file: UploadFile = File(...), current_user: UserO
         xgb_predictions = xgb_model.predict_proba(X)
 
         return {
-            "keras_preds": keras_predictions.tolist(),  # shape (n, 3)
-            "rf_preds": rf_predictions.tolist(),        # shape (n, 3)
-            "xgb_preds": xgb_predictions.tolist()       # shape (n, 3)
+            "keras_preds": keras_predictions.tolist(),  
+            "rf_preds": rf_predictions.tolist(),        
+            "xgb_preds": xgb_predictions.tolist()       
         }
     except Exception as e:
         return {"error": f"Error al realizar predicciones: {str(e)}"}

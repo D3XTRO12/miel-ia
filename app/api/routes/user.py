@@ -25,7 +25,6 @@ router = APIRouter(
     tags=["users"]
 )
 
-# Dependencies
 def get_user_service(db: Session = Depends(get_db)) -> UserService:
     user_repo = UserRepo(db)
     return UserService(user_repo=user_repo)
@@ -53,7 +52,6 @@ async def create_user(
 ) -> UserResponse:
     """Crear un nuevo usuario"""
     try:
-        # Convertir UserCreateDTO a UserCreateInternal
         user_for_creation = UserCreateInternal(
             name=user_data.name,
             last_name=user_data.last_name or "",
@@ -62,10 +60,8 @@ async def create_user(
             password=user_data.password
         )
         
-        # Crear el usuario
         user = user_service.create_user(db, user_for_creation)
         
-        # Asignar rol
         role_id = user_data.role_id
         
         try:
@@ -75,14 +71,12 @@ async def create_user(
             )
             user_role_service.create_user_role(db, user_role_data)
         except Exception as role_error:
-            # Si falla la asignación de rol, eliminar el usuario creado
             user_service.delete(db, user.id)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Error assigning role to user: {str(role_error)}"
             )
         
-        # Obtener el usuario actualizado con roles
         updated_user = user_service.find_by_id(db, user.id)
         return UserResponse.model_validate(updated_user)
         
@@ -114,7 +108,7 @@ async def get_users(
 
 @router.get("/by-role/{role_id}", response_model=List[UserResponse])
 async def get_users_by_role(
-    role_id: uuid.UUID,  # Cambiado para aceptar UUID directamente
+    role_id: uuid.UUID,  
     db: Session = Depends(get_db),
     user_repo: UserRepo = Depends(get_user_repository),
     current_user: UserOut = Depends(get_current_user)
@@ -171,14 +165,11 @@ async def delete_user(
 ) -> UserResponse:
     """Eliminar un usuario"""
     try:
-        # Obtener todas las relaciones user_role del usuario
         user_roles = user_role_service.get_user_roles_by_user_id(db, user_id)
         
-        # Eliminar cada relación
         for user_role in user_roles:
             user_role_service.delete_user_role(db, user_role.id)
         
-        # Eliminar el usuario
         deleted_user = user_service.delete(db, user_id=user_id)
         return UserResponse.model_validate(deleted_user)
         

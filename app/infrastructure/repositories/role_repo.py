@@ -26,7 +26,6 @@ class RoleRepo(BaseRepository[Role]):
     def create(self, db: Session = None, *, obj_in: Any = None, name: str = None) -> Role:
         """Implementación del método abstracto create de BaseRepository"""
         if name is None and obj_in is not None:
-            # Si viene un objeto, extraer el nombre
             name = obj_in.name if hasattr(obj_in, 'name') else str(obj_in)
         
         if name is None:

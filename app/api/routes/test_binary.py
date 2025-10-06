@@ -8,13 +8,12 @@ from tensorflow.keras.models import load_model
 import os
 import joblib
 
-from app.infrastructure.db.DTOs.auth_schema import UserOut  # Añadido para cargar modelos scikit-learn
+from app.infrastructure.db.DTOs.auth_schema import UserOut  
 from ...api.v1.auth import get_current_user
 
 
 test_binary = APIRouter()
 
-# Función mejorada para cargar los modelos
 def load_models():
     base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..","..","..", "trained_models", "binary"))
     
@@ -27,11 +26,9 @@ def load_models():
     print(f"  - RF: {rf_model_path}")
     print(f"  - XGB: {xgb_model_path}")
 
-    # Cargar modelo Keras
     keras_model = load_model(keras_model_path)
     print(f"Modelo Keras cargado: {type(keras_model)}")
 
-    # Cargar modelo RandomForest usando joblib (preferido para scikit-learn)
     try:
         rf_model = joblib.load(rf_model_path)
         print(f"Modelo RandomForest cargado con joblib: {type(rf_model)}")
@@ -42,7 +39,6 @@ def load_models():
             rf_model = pickle.load(f)
             print(f"Modelo RandomForest cargado con pickle: {type(rf_model)}")
 
-    # Validar que el modelo RF es correcto
     if isinstance(rf_model, np.ndarray):
         raise TypeError("Error: rf_model fue sobrescrito por un array de predicciones en algún punto.")
     
@@ -52,7 +48,6 @@ def load_models():
     if not hasattr(rf_model, 'predict_proba'):
         print("⚠️ Advertencia: rf_model no tiene método 'predict_proba', puede causar errores al usarlo.")
 
-    # Cargar modelo XGBoost usando joblib (también preferido para XGBoost guardado con scikit-learn API)
     try:
         xgb_model = joblib.load(xgb_model_path)
         print(f"Modelo XGBoost cargado con joblib: {type(xgb_model)}")
@@ -63,16 +58,13 @@ def load_models():
             xgb_model = pickle.load(f)
             print(f"Modelo XGBoost cargado con pickle: {type(xgb_model)}")
 
-    # Validar que el modelo XGBoost es correcto
     if not hasattr(xgb_model, 'predict'):
         raise TypeError(f"Error: xgb_model no parece tener un método 'predict'. Tipo: {type(xgb_model)}")
 
     return keras_model, rf_model, xgb_model
 
-# Endpoint para testear modelos
 @test_binary.post("/test-binary")
 async def test_models_endpoint(file: UploadFile = File(...), current_user: UserOut = Depends(get_current_user)):
-    # Cargar los modelos
     try:
         keras_model, rf_model, xgb_model = load_models()
         print("Modelos cargados correctamente")
@@ -81,7 +73,6 @@ async def test_models_endpoint(file: UploadFile = File(...), current_user: UserO
         return {"error": f"Error al cargar modelos: {str(e)}"}
 
     try:
-        # Leer el archivo CSV
         content = await file.read()
         df = pd.read_csv(io.StringIO(content.decode("utf-8")))
         print(f"Archivo CSV cargado: {df.shape[0]} filas, {df.shape[1]} columnas")
@@ -89,7 +80,6 @@ async def test_models_endpoint(file: UploadFile = File(...), current_user: UserO
         print(f"Error al procesar el archivo CSV: {e}")
         return {"error": f"Error al procesar el archivo CSV: {str(e)}"}
 
-    # Definir las columnas de características
     feature_columns = [
         'standard_deviation_e1', 'standard_deviation_e2', 'standard_deviation_e3', 'standard_deviation_e4',
         'standard_deviation_e5', 'standard_deviation_e6', 'standard_deviation_e7', 'standard_deviation_e8',
@@ -113,7 +103,6 @@ async def test_models_endpoint(file: UploadFile = File(...), current_user: UserO
         'willison_amplitude_e5', 'willison_amplitude_e6', 'willison_amplitude_e7', 'willison_amplitude_e8'
     ]
 
-    # Verificar que todas las columnas necesarias están presentes
     missing_columns = [col for col in feature_columns if col not in df.columns]
     if missing_columns:
         print(f"Columnas faltantes en el CSV: {missing_columns}")
@@ -123,15 +112,12 @@ async def test_models_endpoint(file: UploadFile = File(...), current_user: UserO
     print(f"Matriz de características preparada: {X.shape}")
 
     try:
-        # Predicciones con el modelo Keras (Regresión Logística)
         keras_predictions = keras_model.predict(X)
         print(f"Predicciones Keras completadas: {keras_predictions.shape}")
 
-        # Predicciones con el modelo Random Forest
         rf_predictions = rf_model.predict_proba(X)[:, 1]
         print(f"Predicciones RandomForest completadas: {rf_predictions.shape}")
 
-        # Predicciones con el modelo XGBoost
         xgb_predictions = xgb_model.predict_proba(X)[:, 1]
         print(f"Predicciones XGBoost completadas: {xgb_predictions.shape}")
 

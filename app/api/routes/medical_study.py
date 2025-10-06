@@ -26,7 +26,6 @@ class MedicalStudySearchType(str, Enum):
 router = APIRouter(prefix="/medical_studies", tags=["Medical Studies"])
 
 def get_medical_study_service(db: Session = Depends(get_db)) -> MedicalStudyService:
-    # Los repositorios necesitan la sesión de base de datos
     study_repo = MedicalStudyRepo()
     user_repo = UserRepo(db)
     return MedicalStudyService(medical_study_repo=study_repo, user_repo=user_repo)
@@ -116,8 +115,8 @@ def delete_medical_study(
 
 @router.patch("/{study_id}", response_model=MedicalStudyResponseDTO)
 def partial_update_study(
-    study_id: int,
-    study_data: MedicalStudyUpdateDTO, # El DTO con campos opcionales
+    study_id: UUID,
+    study_data: MedicalStudyUpdateDTO, 
     db: Session = Depends(get_db),
     study_service: MedicalStudyService = Depends(get_medical_study_service),
     current_user: UserOut = Depends(get_current_user)
@@ -128,7 +127,6 @@ def partial_update_study(
     """
     try:
         updated_study = study_service.update(db, study_id=study_id, study_update=study_data)
-        # Es buena práctica hacer commit aquí, en la capa del endpoint
         db.commit()
         return updated_study
     except HTTPException:

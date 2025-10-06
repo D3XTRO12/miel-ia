@@ -32,11 +32,9 @@ class UserOut(BaseModel):
     last_name: Optional[str] = Field(None, example="Doe")
     is_active: bool = Field(default=True, description="Indica si el usuario está activo")
     
-    # Campos datetime opcionales
     created_at: Optional[datetime] = Field(default=None, description="Fecha de creación del usuario")
     updated_at: Optional[datetime] = Field(default=None, description="Fecha de actualización del usuario")
     
-    # ✅ CRÍTICO: Cambiar roles para manejar objetos SQLAlchemy
     roles: Optional[List[Any]] = Field(default=[], description="Roles del usuario")
     
     @field_serializer('roles')
@@ -49,14 +47,14 @@ class UserOut(BaseModel):
         
         result = []
         for role in roles:
-            if hasattr(role, '__dict__'):  # Es un objeto SQLAlchemy
+            if hasattr(role, '__dict__'):  
                 role_dict = {
                     'id': str(role.id) if hasattr(role, 'id') else None,
                     'name': role.name if hasattr(role, 'name') else None,
                     'description': role.description if hasattr(role, 'description') else None
                 }
                 result.append(role_dict)
-            elif isinstance(role, dict):  # Ya es un diccionario
+            elif isinstance(role, dict):  
                 result.append(role)
             else:  # Fallback
                 result.append({'name': str(role)})

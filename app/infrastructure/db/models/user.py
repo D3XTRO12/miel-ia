@@ -9,7 +9,6 @@ class User(BaseModel):
     __tablename__ = "users"
     """Tabla para almacenar usuarios del sistema"""
     
-    # Campos existentes (sin id, created_at, updated_at que vienen de BaseModel)
     dni: str = Column(String(20), unique=True, nullable=False)
     email: str = Column(String(120), unique=True, nullable=False)
     last_name: str = Column(String(100), nullable=False)
@@ -19,7 +18,6 @@ class User(BaseModel):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
     
-    # Relaciones
     role_associations = relationship("UserRole", back_populates="user", cascade="all, delete-orphan")
     roles = association_proxy("role_associations", "role")
     

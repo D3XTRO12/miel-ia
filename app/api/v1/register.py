@@ -34,14 +34,12 @@ router = APIRouter(
     tags=["register-global"]
 )
 
-# Crear un nuevo modelo Pydantic para el registro de pacientes (sin role_id)
 class PatientRegister(BaseModel):
     email: str
     dni: str
     password: str
     name: Optional[str] = None
     last_name: Optional[str] = None
-    # Agregar otros campos necesarios, excepto role_id
 
 @router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register_patient(
@@ -53,7 +51,6 @@ async def register_patient(
 ):
     """Registrar un nuevo paciente (todos los registros son pacientes por defecto)"""
     try:
-        # Obtener el role_id de paciente desde las variables de entorno
         patient_role_id_str = os.getenv("PATIENT_ROLE_ID")
         
         if not patient_role_id_str:
@@ -62,7 +59,6 @@ async def register_patient(
                 detail="PATIENT_ROLE_ID environment variable not set"
             )
         
-        # Convertir string UUID a objeto UUID
         try:
             default_patient_role_id = uuid.UUID(patient_role_id_str)
         except ValueError:
@@ -71,24 +67,20 @@ async def register_patient(
                 detail="Invalid UUID format in PATIENT_ROLE_ID environment variable"
             )
         
-        # Verificar que el rol de paciente existe
         role_service.get_role(role_id=default_patient_role_id)
 
-        # Crear el objeto UserCreate con el role_id por defecto
         user_create_data = UserCreate(
-            dni=user_data.dni,  # Cambiado de username a dni
+            dni=user_data.dni,  
             email=user_data.email,
             password=user_data.password,
             name=user_data.name,
             last_name=user_data.last_name,
-            role_id=default_patient_role_id  # Ahora es un objeto UUID
+            role_id=default_patient_role_id  
         )
 
-        # Crear el usuario
         user_for_creation = UserCreateInternal.model_validate(user_create_data)
         user = user_service.create_user(db, user_for_creation)
 
-        # Asignar rol de paciente al usuario
         user_role_data = UserRoleCreateDTO(user_id=user.id, role_id=default_patient_role_id)
         user_role_service.create_user_role(db, obj_in=user_role_data)
 

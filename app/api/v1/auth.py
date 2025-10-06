@@ -22,7 +22,6 @@ from sqlalchemy.orm import Session
 def get_user_service(db: Session = Depends(get_db)) -> UserService:
     return UserService(user_repo=UserRepo(db))
 
-# Función auxiliar para obtener el usuario actual
 def get_current_user(
     db: Session = Depends(get_db),
     token: str = Depends(oauth2_scheme)
@@ -32,13 +31,13 @@ def get_current_user(
     return auth_service.get_current_user(db, token)
 
 def get_user_role_service(db: Session = Depends(get_db)) -> UserRoleService:
-    user_repo = UserRepo(db)  # Pasar db, no User
-    role_repo = RoleRepo(db)  # Esto ya está bien
-    user_role_repo = UserRoleRepo(UserRole)  # Esto podría necesitar db también
+    user_repo = UserRepo(db)  
+    role_repo = RoleRepo(db)  
+    user_role_repo = UserRoleRepo(db)  
     return UserRoleService(user_role_repo, user_repo, role_repo)
 
 def get_role_repo(db: Session = Depends(get_db)) -> RoleRepo:
-    return RoleRepo(db)  # Esto está correcto
+    return RoleRepo(db)
 
 def get_role_service(role_repo: RoleRepo = Depends(get_role_repo)) -> RoleService:
     return RoleService(role_repo)
@@ -46,7 +45,6 @@ def get_role_service(role_repo: RoleRepo = Depends(get_role_repo)) -> RoleServic
 def get_user_repository(db: Session = Depends(get_db)) -> UserRepo:
     return UserRepo(db)
 
-# Función auxiliar para obtener el usuario actual
 def get_current_user(
     db: Session = Depends(get_db),
     token: str = Depends(oauth2_scheme)
@@ -66,7 +64,6 @@ async def login_for_access_token(
     auth_service: AuthService = Depends(get_auth_service),
     db: Session = Depends(get_db)
 ):
-    # El username del formulario OAuth2 se usa como email
     user_login = UserLogin(email=form_data.username, password=form_data.password)
     return auth_service.login(db, user_login)
 
@@ -81,14 +78,11 @@ async def register_user(
 ):
     """Registrar un nuevo usuario"""
     try:
-        # Verificar que el rol existe
         role = role_service.get_role(user_data.role_id)
         
-        # Crear el usuario
         user_for_creation = UserCreateInternal.model_validate(user_data)
         user = user_service.create_user(db, user_for_creation)
 
-        # Asignar rol al usuario
         user_role_data = UserRoleCreateDTO(user_id=user.id, role_id=user_data.role_id)
         user_role_service.create_user_role(db, obj_in=user_role_data)
 
@@ -119,14 +113,12 @@ async def test_token_decoding(token: str = Depends(oauth2_scheme),
     SOLO PARA USO EN DESARROLLO/TESTING.
     """
     try:
-        # Decodificar el token manualmente para ver todo el contenido
         decoded_token = jwt.decode(
             token,
             settings.SECRET_KEY,
             algorithms=[settings.ALGORITHM]
         )
         
-        # Opcional: Verificar que el usuario existe en la base de datos
         auth_service = get_auth_service(db)
         user = auth_service.get_current_user(db, token)
         

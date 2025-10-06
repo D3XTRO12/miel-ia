@@ -9,7 +9,6 @@ class FileStorageRepo(BaseRepository[FileStorage]):
     Ahora implementa todos los métodos abstractos de BaseRepository.
     """
     def __init__(self):
-        # Asignamos el modelo con el que este repositorio trabajará
         self.model = FileStorage
 
     def get(self, db: Session, *, id: int) -> Optional[FileStorage]:
@@ -49,5 +48,4 @@ class FileStorageRepo(BaseRepository[FileStorage]):
         db_obj = self.get(db, id=id)
         if db_obj:
             db.delete(db_obj)
-            # El commit se debe manejar en el servicio/endpoint que llama a este método.
         return db_obj

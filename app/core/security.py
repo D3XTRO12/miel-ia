@@ -6,20 +6,17 @@ from typing import Optional
 import os
 from dotenv import load_dotenv
 
-# Carga variables de entorno
 load_dotenv()
 
-# Configuración de seguridad
 SECRET_KEY = os.getenv("SECRET_KEY", "secret-key-para-desarrollo")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-# Configuración para hashing de contraseñas - CORREGIDA
 pwd_context = CryptContext(
     schemes=["argon2"],
-    argon2__time_cost=3,        # CORREGIDO: era argon2__rounds
-    argon2__memory_cost=65536,  # Debe coincidir con los logs (m=65536)
-    argon2__parallelism=4,      # Debe coincidir con los logs (p=4)
+    argon2__time_cost=3,
+    argon2__memory_cost=65536,
+    argon2__parallelism=4,
     deprecated="auto"
 )
 
@@ -30,35 +27,27 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         print(f"  - Contraseña plana: '{plain_password}'")
         print(f"  - Hash almacenado: {hashed_password[:50]}...")
         
-        # Verificar que el hash tenga el formato correcto
         if not hashed_password.startswith('$argon2'):
             print(f"❌ [SECURITY ERROR] Hash no tiene formato Argon2")
             return False
         
-        # Realizar la verificación
         result = pwd_context.verify(plain_password, hashed_password)
         print(f"  - Resultado verificación: {result}")
-        
-        # Si falla, mostrar info adicional para debug
+
         if not result:
             print(f"  - ⚠️ Verificación fallida, intentando diagnóstico...")
             try:
-                # Generar hash nuevo para comparar parámetros
                 new_hash = pwd_context.hash(plain_password)
                 print(f"  - Hash generado ahora: {new_hash[:50]}...")
                 
-                # Extraer parámetros del hash almacenado
                 stored_params = hashed_password.split('$')[3] if len(hashed_password.split('$')) > 3 else "unknown"
                 new_params = new_hash.split('$')[3] if len(new_hash.split('$')) > 3 else "unknown"
                 
                 print(f"  - Parámetros almacenados: {stored_params}")
                 print(f"  - Parámetros actuales: {new_params}")
                 
-                # SOLUCIÓN DE EMERGENCIA: Si los parámetros son diferentes, rehash
                 if stored_params != new_params:
                     print("  - 🔄 Parámetros diferentes detectados, necesita rehash")
-                    # En este caso, podríamos asumir que la contraseña es correcta
-                    # y actualizar el hash (solo para desarrollo/migración)
                     
             except Exception as debug_e:
                 print(f"  - Error en diagnóstico: {debug_e}")
@@ -99,7 +88,6 @@ def decode_access_token(token: str):
     except JWTError:
         return None
 
-# FUNCIÓN DE EMERGENCIA PARA RESETEAR CONTRASEÑA
 def emergency_password_reset(email: str, new_password: str):
     """
     Función de emergencia para resetear contraseña en desarrollo

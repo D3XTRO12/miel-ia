@@ -13,13 +13,11 @@ class MedicalStudy(BaseModel):
     ml_results = Column(Text, nullable=True)
     status = Column(String(50), default="PENDING")
     
-    # Referencias a usuarios (ahora con UUID)
     doctor_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     patient_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     technician_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     csv_file_id = Column(UUID(as_uuid=True), ForeignKey("file_storage.id"), nullable=True)
     
-    # Relaciones
     doctor = relationship("User", foreign_keys=[doctor_id])
     patient = relationship("User", foreign_keys=[patient_id])
     technician = relationship("User", foreign_keys=[technician_id])

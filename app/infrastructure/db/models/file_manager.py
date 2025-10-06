@@ -12,4 +12,4 @@ class FileStorage(BaseModel):
     file_size = Column(Integer)
     file_content_binary = Column(LargeBinary)
     description = Column(Text)
-    user_id = Column(UUID(as_uuid=True))  # Ahora usando UUID
+    user_id = Column(UUID(as_uuid=True))  

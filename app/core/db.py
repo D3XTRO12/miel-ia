@@ -4,22 +4,16 @@ from sqlalchemy.pool import QueuePool, StaticPool, NullPool
 from sqlalchemy import event
 from .config import settings
 
-
-
-# Configuración base del motor
 Base = declarative_base()
 engine_kwargs = {}
 
-# Configuración específica por motor de base de datos
 db_url = settings.DATABASE_URL.lower()
 
 if "sqlite" in db_url:
-    # Configuración para SQLite
     engine_kwargs.update({
         "connect_args": {"check_same_thread": False},
-        "poolclass": StaticPool  # No necesita pooling para SQLite
+        "poolclass": StaticPool
     })
-    # Esto permite a SQLite manejar UUIDs
     @event.listens_for(Engine, "connect")
     def _set_sqlite_pragma(dbapi_connection, connection_record):
         cursor = dbapi_connection.cursor()
@@ -27,7 +21,6 @@ if "sqlite" in db_url:
         cursor.close()
 
 elif "mysql" in db_url or "mariadb" in db_url:
-    # Configuración para MySQL/MariaDB
     engine_kwargs.update({
         "poolclass": QueuePool,
         "pool_size": 5,
@@ -41,7 +34,6 @@ elif "mysql" in db_url or "mariadb" in db_url:
     })
 
 elif "mssql" in db_url or "sqlserver" in db_url:
-    # Configuración para SQL Server
     engine_kwargs.update({
         "poolclass": QueuePool,
         "pool_size": 5,
@@ -58,13 +50,11 @@ elif "mssql" in db_url or "sqlserver" in db_url:
 else:
     raise ValueError(f"Database URL no soportada: {settings.DATABASE_URL}")
 
-# Crear motor de base de datos
 try:
     engine = create_engine(settings.DATABASE_URL, **engine_kwargs)
 except Exception as e:
     raise ValueError(f"Error al crear el motor de base de datos: {e}")
 
-# Configurar SessionLocal
 SessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
@@ -73,7 +63,6 @@ SessionLocal = sessionmaker(
 )
 
 
-# Función para obtener sesión de base de datos
 def get_db_session():
     """
     Generador de sesiones de base de datos con manejo de errores
@@ -87,19 +76,17 @@ def get_db_session():
     finally:
         db.close()
 
-# Función para verificar conexión
 def check_database_connection():
     """
     Verifica si la conexión a la base de datos funciona
     """
     try:
         with engine.connect() as conn:
-            conn.execute("SELECT 1")  # Query universal para todos los motores
+            conn.execute("SELECT 1")
         return True
     except Exception as e:
         return False
 
-# Función para crear todas las tablas
 def create_tables():
     """
     Crear todas las tablas definidas en los modelos

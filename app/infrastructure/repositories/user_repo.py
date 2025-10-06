@@ -5,7 +5,6 @@ from ..db.models.user import User
 from ..repositories.base_repo import BaseRepository
 from ...core.security import get_password_hash, verify_password
 
-# DTOs
 from ..db.DTOs.user_dto import UserUpdateDTO, UserCreateDTO
 
 class UserRepo(BaseRepository[User]):
@@ -41,7 +40,6 @@ class UserRepo(BaseRepository[User]):
         else:
             create_data = obj_in.model_dump(exclude_unset=True)
         
-        # Hashear la contraseña antes de guardarla
         if 'password' in create_data:
             create_data['password'] = get_password_hash(create_data['password'])
 
@@ -70,7 +68,6 @@ class UserRepo(BaseRepository[User]):
         else:
             update_data = obj_in.model_dump(exclude_unset=True)
         
-        # Si se actualiza la contraseña, la hasheamos
         if 'password' in update_data:
             update_data['password'] = get_password_hash(update_data['password'])
         

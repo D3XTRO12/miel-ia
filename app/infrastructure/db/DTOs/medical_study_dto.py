@@ -5,7 +5,6 @@ from uuid import UUID
 from .user_dto import DoctorInfoDTO, PatientInfoDTO
 from .base_dto import BaseDTO
 
-# Si no existe TechnicianInfoDTO, usar DoctorInfoDTO (son iguales)
 TechnicianInfoDTO = DoctorInfoDTO
 
 class MedicalStudyCreateDTO(BaseDTO):
@@ -26,7 +25,7 @@ class MedicalStudyUpdateDTO(BaseDTO):
     csv_file_id: Optional[UUID] = None
 
 class MedicalStudyResponseDTO(BaseDTO):
-    model_config = ConfigDict(from_attributes=True)  # ← CRÍTICO: Esto faltaba
+    model_config = ConfigDict(from_attributes=True)  
     
     id: UUID
     access_code: str
@@ -34,10 +33,9 @@ class MedicalStudyResponseDTO(BaseDTO):
     creation_date: Optional[datetime] = Field(default=None, alias="created_at")
     ml_results: Optional[str] = None
     clinical_data: Optional[str] = None
-    csv_file_id: Optional[UUID] = None  # ← AGREGAR ESTA LÍNEA
+    csv_file_id: Optional[UUID] = None  
 
     
-    # Información de usuarios
     patient: PatientInfoDTO
     doctor: Optional[DoctorInfoDTO] = None
-    technician: Optional[TechnicianInfoDTO] = None  # ← Faltaba el técnico
+    technician: Optional[TechnicianInfoDTO] = None  

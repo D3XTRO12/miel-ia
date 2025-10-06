@@ -39,12 +39,8 @@ class MedicalStudyRepo(BaseRepository[MedicalStudy]):
         return (
             db.query(self.__study_model)
             .options(
-                # === LA LÍNEA QUE SOLUCIONA TODO ===
-                # Le dice a SQLAlchemy que cargue la relación 'doctor' en la misma consulta.
-                # Asume que tu modelo MedicalStudy tiene una relación llamada 'doctor'.
                 joinedload(self.__study_model.doctor)
             )
-            # El join con el paciente sigue siendo necesario para poder filtrar por DNI.
             .join(self.__user_model, self.__study_model.patient_id == self.__user_model.id)
             .filter(
                 self.__user_model.dni == dni,
@@ -64,7 +60,7 @@ class MedicalStudyRepo(BaseRepository[MedicalStudy]):
             .options(
                 joinedload(self.__study_model.doctor),
                 joinedload(self.__study_model.patient),
-                joinedload(self.__study_model.technician)  # Si existe esta relación
+                joinedload(self.__study_model.technician)  
             )
             .order_by(self.__study_model.id.desc())
             .offset(skip)
@@ -86,7 +82,7 @@ class MedicalStudyRepo(BaseRepository[MedicalStudy]):
         db.refresh(db_obj)
         return db_obj
 
-    def delete(self, db: Session, *, id: UUID) -> MedicalStudy:  # Cambiar de int a UUID
+    def delete(self, db: Session, *, id: UUID) -> MedicalStudy:  
         db_obj = db.query(self.__study_model).filter(self.__study_model.id == id).first()
         if not db_obj:
             raise HTTPException(status_code=404, detail="Medical study not found")

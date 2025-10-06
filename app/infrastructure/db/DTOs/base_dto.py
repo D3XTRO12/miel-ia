@@ -1,4 +1,3 @@
-# app/infrastructure/db/DTOs/base_dto.py
 from pydantic import BaseModel
 from uuid import UUID
 from datetime import datetime

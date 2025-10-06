@@ -13,8 +13,8 @@ from core.db import get_db_session as get_db
 
 router = APIRouter(prefix="/temp-roles", tags=["Temporary Role Creation"])
 def get_role_service(db: Session = Depends(get_db)) -> RoleService:
-    role_repo = RoleRepo(db)  # Sin pasar la sesión
-    role_repo.db = db      # Asignamos después (funciona por el setter)
+    role_repo = RoleRepo(db)  
+    role_repo.db = db
     return RoleService(role_repo)
 
 
@@ -28,7 +28,6 @@ def get_role_service(db: Session = Depends(get_db)) -> RoleService:
 async def create_temp_role(
     role_data: RoleBaseDTO,
     role_service: RoleService = Depends(get_role_service),
-    # current_user: UserOut = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """

@@ -73,7 +73,6 @@ class UserCreateInternal(BaseDTO):
     dni: str
     password: str
 
-# ✅ DTOs de información específica con configuración para mapeo automático
 class PatientInfoDTO(BaseDTO):
     model_config = ConfigDict(from_attributes=True)
     
@@ -81,7 +80,7 @@ class PatientInfoDTO(BaseDTO):
     name: str
     last_name: str
     dni: str
-    email: Optional[EmailStr] = None  # ← Hacer opcional por si no está disponible
+    email: Optional[EmailStr] = None  
 
 class DoctorInfoDTO(BaseDTO):
     model_config = ConfigDict(from_attributes=True)
@@ -90,7 +89,7 @@ class DoctorInfoDTO(BaseDTO):
     name: str
     last_name: str
     dni: str
-    email: Optional[EmailStr] = None  # ← Hacer opcional por si no está disponible
+    email: Optional[EmailStr] = None  
 
 class TechnicianInfoDTO(BaseDTO):
     model_config = ConfigDict(from_attributes=True)
@@ -99,4 +98,4 @@ class TechnicianInfoDTO(BaseDTO):
     name: str
     last_name: str
     dni: str
-    email: Optional[EmailStr] = None  # ← Hacer opcional por si no está disponible
+    email: Optional[EmailStr] = None 
