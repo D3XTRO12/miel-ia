@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Text, Integer, LargeBinary
+from sqlalchemy import Column, String, Text, Integer, LargeBinary, CHAR
 from sqlalchemy.dialects.postgresql import UUID
 from .base_model import BaseModel
 
@@ -12,4 +12,4 @@ class FileStorage(BaseModel):
     file_size = Column(Integer)
     file_content_binary = Column(LargeBinary)
     description = Column(Text)
-    user_id = Column(UUID(as_uuid=True))  
+    user_id = Column(CHAR(36, collation='ascii_bin'), default=lambda: str(uuid.uuid4())) 

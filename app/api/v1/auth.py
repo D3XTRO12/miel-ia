@@ -74,12 +74,35 @@ async def register_user(
     user_service: UserService = Depends(get_user_service),
     user_role_service: UserRoleService = Depends(get_user_role_service),
     role_service: RoleService = Depends(get_role_service),
-    # current_user: UserOut = Depends(get_current_user)
 ):
     """Registrar un nuevo usuario"""
     try:
+        print(f"🎯 REGISTER DEBUG:")
+        print(f"   Role ID recibido: {repr(user_data.role_id)}")
+        print(f"   Tipo: {type(user_data.role_id)}")
+        
+        # DEBUG: Verificar roles en la base de datos directamente
+        all_roles = db.query(Role).all()
+        print("   📋 Roles en DB:")
+        for role in all_roles:
+            print(f"     - {role.id} : {role.name}")
+        
+        # DEBUG: Búsqueda directa
+        direct_search = db.query(Role).filter(Role.id == user_data.role_id).first()
+        print(f"   🔍 Búsqueda directa: {direct_search is not None}")
+        
+        # Esta es la línea que falla
         role = role_service.get_role(user_data.role_id)
         
+        if not role:
+            print(f"❌ RoleService NO encontró el role")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Role with ID {user_data.role_id} not found"
+            )
+        
+        print(f"✅ Role encontrado: {role.name}")
+
         user_for_creation = UserCreateInternal.model_validate(user_data)
         user = user_service.create_user(db, user_for_creation)
 

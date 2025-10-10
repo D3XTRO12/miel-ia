@@ -1,6 +1,7 @@
+# infrastructure/repositories/role_repo.py
 from sqlalchemy.orm import Session
 from ...infrastructure.db.models.role import Role
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Union
 import uuid
 from ...infrastructure.repositories.base_repo import BaseRepository
 
@@ -8,12 +9,22 @@ class RoleRepo(BaseRepository[Role]):
     def __init__(self, db: Session):
         super().__init__(Role, db)
 
-    def get_by_id(self, id: uuid.UUID) -> Optional[Role]:
-        """Obtiene el rol completo por su ID"""
+    def get_by_id(self, id: Union[str, uuid.UUID]) -> Optional[Role]:
+        """Obtiene el rol completo por su ID (acepta string o UUID)"""
+        # ✅ Convertir a string si es UUID
+        if isinstance(id, uuid.UUID):
+            id = str(id)
+        
+        print(f"🔍 RoleRepo buscando ID: {repr(id)} (tipo: {type(id)})")
+        
         return self.db.query(self.model).filter(self.model.id == id).first()
 
-    def get_role_name(self, id: uuid.UUID) -> Optional[str]:
-        """Obtiene solo el nombre del rol"""
+    def get_role_name(self, id: Union[str, uuid.UUID]) -> Optional[str]:
+        """Obtiene solo el nombre del rol (acepta string o UUID)"""
+        # ✅ Convertir a string si es UUID
+        if isinstance(id, uuid.UUID):
+            id = str(id)
+            
         role = self.get_by_id(id)
         return role.name if role else None
 

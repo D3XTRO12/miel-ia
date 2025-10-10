@@ -1,5 +1,5 @@
 import json
-import pathlib # Para manejar extensiones de archivo fácilmente
+import pathlib
 from sqlalchemy.orm import Session
 from fastapi import UploadFile, HTTPException, status
 from uuid import UUID
@@ -15,7 +15,11 @@ class DiagnoseService:
 
     async def run_diagnosis_workflow(self, db: Session, study_id: UUID, file: UploadFile, user_id: UUID):
         # 1. Validar que el estudio exista y esté pendiente
-        study = self.__study_service.get_by_id(db, study_id=study_id)  # ← CAMBIO: usar get_by_id en lugar de get_study_by_id
+        # USAR el método del repositorio directamente para obtener el objeto del modelo, no el DTO
+        from ..infrastructure.repositories.medical_study_repo import MedicalStudyRepo
+        study_repo = MedicalStudyRepo()
+        study = study_repo.get_by_id(db, study_id)  # ← Esto devuelve el objeto MedicalStudy, no el DTO
+        
         if not study:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -29,10 +33,11 @@ class DiagnoseService:
             )
 
         # 2. Generar el nuevo nombre de archivo personalizado
-        patient = study.patient # SQLAlchemy carga la relación automáticamente
+        # Acceder directamente a las relaciones del modelo
+        patient = study.patient
         
-        # Obtener la fecha de creación del estudio correctamente
-        study_date_str = study.creation_date.strftime('%Y%m%d') if study.creation_date else study.created_at.strftime('%Y%m%d')
+        # CORREGIDO: Usar created_at del modelo, no creation_date del DTO
+        study_date_str = study.created_at.strftime('%Y%m%d')
         original_extension = pathlib.Path(file.filename).suffix
         new_filename = f"{patient.id}_{patient.name}_{patient.last_name}_{study_date_str}{original_extension}".replace(" ", "_")
         
@@ -50,13 +55,14 @@ class DiagnoseService:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"An error occurred during ML processing: {e}")
 
-        # 5. Actualizar el estudio médico con los resultados, el nuevo estado y la referencia al archivo
+        # 5. Actualizar el estudio médico
         update_data = MedicalStudyUpdateDTO(
-            status="COMPLETED", # El estado cambia a "Listo"
-            ml_results=json.dumps(ml_verdict), # Guardamos el veredicto como JSON
+            status="COMPLETED",
+            ml_results=json.dumps(ml_verdict),
             csv_file_id=saved_file.id
         )
         
+        # Usar el servicio para actualizar (esto maneja la conversión a DTO)
         updated_study = self.__study_service.update(db, study_id=study.id, study_update=update_data)
         
         return updated_study

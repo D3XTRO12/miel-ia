@@ -1,19 +1,25 @@
 import uuid
 from sqlalchemy.orm import Session
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union
 from ..db.models.user import User
 from ..repositories.base_repo import BaseRepository
 from ...core.security import get_password_hash, verify_password
-
 from ..db.DTOs.user_dto import UserUpdateDTO, UserCreateDTO
 
 class UserRepo(BaseRepository[User]):
     def __init__(self, db: Session = None):
         super().__init__(User, db)
     
-    def get(self, db: Session, *, id: uuid.UUID) -> Optional[User]:
-        """Obtiene un usuario por UUID"""
-        return db.query(self.model).filter(self.model.id == id).first()
+    def _normalize_id(self, id_value: Union[str, uuid.UUID]) -> str:
+        """Normaliza IDs a string para consistencia"""
+        if isinstance(id_value, uuid.UUID):
+            return str(id_value)
+        return str(id_value) if id_value is not None else None
+    
+    def get(self, db: Session, *, id: Union[str, uuid.UUID]) -> Optional[User]:
+        """Obtiene un usuario por UUID (acepta string o UUID)"""
+        normalized_id = self._normalize_id(id)
+        return db.query(self.model).filter(self.model.id == normalized_id).first()
 
     def get_by_email(self, db: Session, *, email: str) -> Optional[User]:
         return db.query(self.model).filter(self.model.email == email).first()
@@ -49,16 +55,18 @@ class UserRepo(BaseRepository[User]):
         db.refresh(db_obj)
         return db_obj
     
-    def get_users_by_role_id(self, db: Session, role_id: uuid.UUID) -> List[User]:
+    def get_users_by_role_id(self, db: Session, role_id: Union[str, uuid.UUID]) -> List[User]:
         """
         Obtiene todos los usuarios que tienen un rol específico usando JOIN.
         """
         from ..db.models.user_role import UserRole
+        
+        normalized_role_id = self._normalize_id(role_id)
 
         return (
             db.query(User)
             .join(UserRole, User.id == UserRole.user_id)
-            .filter(UserRole.role_id == role_id)
+            .filter(UserRole.role_id == normalized_role_id)
             .all()
         )
 
@@ -80,9 +88,10 @@ class UserRepo(BaseRepository[User]):
         db.refresh(db_obj)
         return db_obj
 
-    def delete(self, db: Session, *, id: uuid.UUID) -> User:
-        """Elimina un usuario por UUID"""
-        user = db.query(self.model).filter(self.model.id == id).first()
+    def delete(self, db: Session, *, id: Union[str, uuid.UUID]) -> User:
+        """Elimina un usuario por UUID (acepta string o UUID)"""
+        normalized_id = self._normalize_id(id)
+        user = db.query(self.model).filter(self.model.id == normalized_id).first()
         if not user:
             raise ValueError("Usuario no encontrado para eliminar")
         
@@ -98,6 +107,7 @@ class UserRepo(BaseRepository[User]):
             return None
         return user
     
-    def get_multiple_by_ids(self, db: Session, user_ids: List[uuid.UUID]) -> List[User]:
-        """Obtiene múltiples usuarios por sus UUIDs"""
-        return db.query(User).filter(User.id.in_(user_ids)).all()
+    def get_multiple_by_ids(self, db: Session, user_ids: List[Union[str, uuid.UUID]]) -> List[User]:
+        """Obtiene múltiples usuarios por sus UUIDs (acepta strings o UUIDs)"""
+        normalized_ids = [self._normalize_id(user_id) for user_id in user_ids]
+        return db.query(User).filter(User.id.in_(normalized_ids)).all()

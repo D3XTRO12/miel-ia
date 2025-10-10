@@ -1,7 +1,8 @@
+# services/role_service.py
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
-from typing import List
-from uuid import UUID
+from typing import List, Union
+import uuid
 from ..infrastructure.repositories.role_repo import RoleRepo
 from ..infrastructure.db.models.role import Role
 from ..infrastructure.db.DTOs.role_dto import RoleBaseDTO as RoleDTO, RoleResponseDTO
@@ -10,8 +11,8 @@ class RoleService:
     def __init__(self, role_repo: RoleRepo):
         self._role_repo = role_repo
 
-    def get_role(self, role_id: UUID) -> Role:
-        """Obtiene el rol completo por su ID"""
+    def get_role(self, role_id: Union[str, uuid.UUID]) -> Role:
+        """Obtiene el rol completo por su ID (acepta string o UUID)"""
         role = self._role_repo.get_by_id(role_id)
         if not role:
             raise HTTPException(
@@ -20,8 +21,8 @@ class RoleService:
             )
         return role
 
-    def get_role_name(self, role_id: UUID) -> str:
-        """Obtiene solo el nombre del rol"""
+    def get_role_name(self, role_id: Union[str, uuid.UUID]) -> str:
+        """Obtiene solo el nombre del rol (acepta string o UUID)"""
         name = self._role_repo.get_role_name(role_id)
         if not name:
             raise HTTPException(
@@ -31,7 +32,7 @@ class RoleService:
         return name
 
     def get_all_roles(self) -> List[RoleResponseDTO]:
-        roles = self._role_repo.get_all()  # Usar get_all() en lugar de get()
+        roles = self._role_repo.get_all()
         return [RoleResponseDTO.model_validate(role) for role in roles]
     
     def create_role(self, name: str) -> RoleDTO:

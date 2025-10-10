@@ -8,7 +8,6 @@ from typing import List, Optional
 
 from ..infrastructure.repositories.medical_study_repo import MedicalStudyRepo
 from ..infrastructure.repositories.user_repo import UserRepo
-from ..infrastructure.db.DTOs.medical_study_dto import MedicalStudyCreateDTO, MedicalStudyUpdateDTO
 from ..infrastructure.db.DTOs.medical_study_dto import MedicalStudyCreateDTO, MedicalStudyUpdateDTO, MedicalStudyResponseDTO
 
 
@@ -30,24 +29,26 @@ class MedicalStudyService:
         if not doctor:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Doctor not found.")
         
-        # CAMBIO AQUÍ: Verificar roles por UUID, no por nombre
+        # OBTENER LOS IDs REALES DE ROLES DESDE LA BD
+        admin_role_id, doctor_role_id, patient_role_id = self.__get_role_ids_from_db(db)
+        
+        doctor_role_ids = [str(role.id) for role in doctor.roles]
         doctor_role_names = [role.name for role in doctor.roles]
-        doctor_role_ids = [str(role.id) for role in doctor.roles]  # Convertir UUIDs a string
         
-        print(f"Doctor {doctor.id} has role names: {doctor_role_names}")  # Debug
-        print(f"Doctor {doctor.id} has role IDs: {doctor_role_ids}")      # Debug
+        print(f"Doctor {doctor.id} has role names: {doctor_role_names}")
+        print(f"Doctor {doctor.id} has role IDs: {doctor_role_ids}")
+        print(f"Expected Doctor role ID: {doctor_role_id}")
         
-        # Verificar si tiene rol Doctor (por nombre O por ID)
+        # Verificar por ID del rol Doctor
         has_doctor_role = (
             "Doctor" in doctor_role_names or 
-            "DOCTOR" in doctor_role_names or
-            "ee6ded1a-3ce0-41c9-b6c8-bf9e3c3ca0bc" in doctor_role_ids  # ID del rol Doctor
+            str(doctor_role_id) in doctor_role_ids
         )
         
         if not has_doctor_role:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, 
-                detail=f"Invalid Doctor ID or user is not a doctor. User has roles: {doctor_role_names}"
+                detail=f"User is not a doctor. User has roles: {doctor_role_names}"
             )
         
         # 3. Validar patient
@@ -55,33 +56,74 @@ class MedicalStudyService:
         if not patient:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Patient not found.")
         
-        patient_role_names = [role.name for role in patient.roles]
         patient_role_ids = [str(role.id) for role in patient.roles]
+        patient_role_names = [role.name for role in patient.roles]
         
-        print(f"Patient {patient.id} has role names: {patient_role_names}")  # Debug
+        print(f"Patient {patient.id} has role names: {patient_role_names}")
+        print(f"Expected Patient role ID: {patient_role_id}")
         
-        # Verificar si tiene rol Patient
+        # Verificar por ID del rol Patient
         has_patient_role = (
             "Patient" in patient_role_names or 
-            "PATIENT" in patient_role_names or
-            "8e4a6d51-74eb-4cb5-8992-c15b56020d12" in patient_role_ids  # ID del rol Patient
+            str(patient_role_id) in patient_role_ids
         )
         
         if not has_patient_role:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, 
-                detail=f"Invalid Patient ID or user is not a patient. User has roles: {patient_role_names}"
+                detail=f"User is not a patient. User has roles: {patient_role_names}"
             )
 
         # 4. Validar technician (opcional)
         if study_data.technician_id:
             technician = self.__user_repo.get(db, id=study_data.technician_id)
             if not technician:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Technician ID.")
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Technician not found.")
 
-        # 5. Si todo es válido, crear el estudio
-        study = self.__medical_study_repo.create(db, obj_in=study_data.model_dump())
-        return MedicalStudyResponseDTO.model_validate(study)
+        # 5. Crear el estudio
+        try:
+            study_dict = study_data.model_dump()
+            study = self.__medical_study_repo.create(db, obj_in=study_dict)
+            return MedicalStudyResponseDTO.model_validate(study)
+        except Exception as e:
+            print(f"❌ Error creating study: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error creating medical study"
+            )
+
+    def __get_role_ids_from_db(self, db: Session):
+        """
+        Obtiene los IDs reales de roles desde la base de datos
+        """
+        try:
+            # Obtener roles desde la BD
+            from ..infrastructure.db.models.role import Role
+            roles = db.query(Role).all()
+            
+            role_map = {}
+            for role in roles:
+                role_map[role.name] = role.id
+            
+            print("🔍 Role IDs from database:")
+            for name, role_id in role_map.items():
+                print(f"  {name}: {role_id}")
+            
+            return (
+                role_map.get('Admin'),
+                role_map.get('Doctor'), 
+                role_map.get('Patient')
+            )
+        except Exception as e:
+            print(f"❌ Error getting roles from DB: {e}")
+            # Fallback a los IDs que sabemos que existen
+            return (
+                UUID("2dedc6ff-999d-4080-bd2b-918e6ce6159d"),  # Admin
+                UUID("ac3e3928-fd43-4008-bdf1-13481820930e"),  # Doctor  
+                UUID("f84bbfdd-1518-4e1f-9a11-5fc50cdcb3e9")   # Patient
+            )
+
+    # ... el resto de tus métodos permanecen igual
 
 
     def get_by_id(self, db: Session, study_id: UUID) -> Optional[MedicalStudyResponseDTO]:

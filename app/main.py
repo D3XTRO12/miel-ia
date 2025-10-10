@@ -17,7 +17,6 @@ from .api.routes.diagnose import router as diagnose_router
 from .api.v1.auth import router as auth_router
 from .api.v1.role import router as role_router
 from .api.v1.register import router as register_router
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
