@@ -4,6 +4,7 @@ from typing import List, Optional, Union
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
 from sqlalchemy import text
+from urllib.parse import quote_plus
 
 load_dotenv()
 
@@ -17,53 +18,13 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     ENVIRONMENT: str = "development"
     
-    DATABASE_URL: str = None
-    
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.DATABASE_URL = self._get_database_url()
-    
-    def _get_database_url(self) -> str:
-        """
-        Determina la URL de la base de datos con fallback automático
-        """
-        azure_url = os.getenv("DATABASE_URL")
-        if azure_url and not azure_url.startswith("sqlite"):
-            if self._test_connection(azure_url):
-                print("✅ Usando Azure SQL Server")
-                return azure_url
-            else:
-                print("❌ Azure SQL Server no disponible, usando fallback...")
-        
-        sqlite_url = "sqlite:///./test.db"
-        print("📊 Usando SQLite local")
-        return sqlite_url
-    
-    def _test_connection(self, url: str, timeout: int = 5) -> bool:
-        """
-        Prueba rápida de conexión a base de datos
-        """
-        try:
-            from sqlalchemy import create_engine
-            
-            connect_args = {"connection_timeout": timeout}
-            if "sqlite" in url.lower():
-                connect_args = {"check_same_thread": False}
-            elif "mssql" in url.lower() or "sqlserver" in url.lower():
-                connect_args = {
-                    "driver": "ODBC Driver 18 for SQL Server",
-                    "TrustServerCertificate": "yes",
-                    "Encrypt": "yes",
-                    "connection_timeout": timeout
-                }
-            
-            engine = create_engine(url, connect_args=connect_args)
-            with engine.connect() as conn:
-                conn.execute(text("SELECT 1"))
-            return True
-        except Exception as e:
-            print(f"⚠️  Error de conexión: {e}")
-            return False
+        # Database
+    DB_HOST: str
+    DB_PORT: str = "3306"
+    DB_NAME: str
+    DB_USER: str
+    DB_PASS: str
+    DB_DRIVER: str = "mysql+pymysql"
     
     SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-here")
     ALGORITHM: str = "HS256"
@@ -127,6 +88,11 @@ class Settings(BaseSettings):
         "case_sensitive": True,
         "extra": "ignore"
     }
+    @property
+    def DATABASE_URL(self) -> str:
+         encoded_password = quote_plus(self.DB_PASS)
+         return f"{self.DB_DRIVER}://{self.DB_USER}:{encoded_password}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+
 
 # Instancia única de configuración
 try:
