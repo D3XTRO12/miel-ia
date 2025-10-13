@@ -123,13 +123,14 @@ class MedicalStudyService:
                 UUID("f84bbfdd-1518-4e1f-9a11-5fc50cdcb3e9")   # Patient
             )
 
-    # ... el resto de tus métodos permanecen igual
 
 
     def get_by_id(self, db: Session, study_id: UUID) -> Optional[MedicalStudyResponseDTO]:
         """
         Obtiene un estudio médico por ID y lo convierte a DTO.
         """
+        print(f"🔍 MedicalStudyService.get_by_id - Buscando: {study_id}")
+        
         # Cargar el estudio con todas las relaciones
         study = db.query(MedicalStudy).options(
             joinedload(MedicalStudy.patient),
@@ -138,29 +139,40 @@ class MedicalStudyService:
         ).filter(MedicalStudy.id == study_id).first()
         
         if not study:
+            print(f"❌ MedicalStudyService.get_by_id - NO encontrado: {study_id}")
             return None
         
-        # Debug: verificar datos antes de convertir a DTO
-        print(f"=== GET BY ID DEBUG ===")
-        print(f"Study ID: {study.id}")
-        print(f"Access Code: {study.access_code}")
-        print(f"Creation Date: {study.created_at}")
-        print(f"Creation Date Type: {type(study.created_at)}")
-        print(f"Patient: {study.patient.name if study.patient else 'None'}")
-        print(f"Patient Email: {study.patient.email if study.patient else 'None'}")
-        print(f"Doctor: {study.doctor.name if study.doctor else 'None'}")
-        print(f"Doctor Email: {study.doctor.email if study.doctor else 'None'}")
-        print(f"Technician: {study.technician.name if study.technician else 'None'}")
-        print(f"======================")
+        print(f"✅ MedicalStudyService.get_by_id - Encontrado: {study.id}")
+        print(f"🔍 Study created_at: {study.created_at}")
         
         try:
-            dto = MedicalStudyResponseDTO.model_validate(study)
-            print(f"DTO Creation Date: {dto.creation_date}")
-            print(f"DTO Patient Email: {dto.patient.email if dto.patient else 'None'}")
+            # Crear un diccionario manualmente para el DTO
+            study_dict = {
+                "id": study.id,
+                "access_code": study.access_code,
+                "status": study.status,
+                "creation_date": study.created_at,  # ← Mapear manualmente
+                "ml_results": study.ml_results,
+                "clinical_data": study.clinical_data,
+                "csv_file_id": study.csv_file_id,
+                "patient": study.patient,
+                "doctor": study.doctor,
+                "technician": study.technician
+            }
+            
+            dto = MedicalStudyResponseDTO(**study_dict)
+            print(f"✅ DTO creado exitosamente: {dto.id}")
             return dto
+            
         except Exception as e:
-            print(f"Error validating study {study.id}: {e}")
-            raise e
+            print(f"❌ Error creando DTO para estudio {study.id}: {e}")
+            # Fallback: intentar con model_validate
+            try:
+                dto = MedicalStudyResponseDTO.model_validate(study)
+                return dto
+            except Exception as e2:
+                print(f"❌ Error también con model_validate: {e2}")
+                raise e
     
     def get_by_patient_dni(self, db: Session, *, dni: str, access_code: str) -> List[MedicalStudy]:
         """

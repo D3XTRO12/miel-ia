@@ -30,12 +30,11 @@ class MedicalStudyResponseDTO(BaseDTO):
     id: UUID
     access_code: str
     status: str
-    creation_date: Optional[datetime] = Field(default=None, alias="created_at")
+    creation_date: Optional[datetime] = None  # ← QUITAR el alias
     ml_results: Optional[str] = None
     clinical_data: Optional[str] = None
     csv_file_id: Optional[UUID] = None  
 
-    
     patient: PatientInfoDTO
     doctor: Optional[DoctorInfoDTO] = None
-    technician: Optional[TechnicianInfoDTO] = None  
+    technician: Optional[TechnicianInfoDTO] = None
