@@ -1,6 +1,5 @@
 # Virtual Environment
 .mielia-venv/
-.miel-ia/
 venv/
 ENV/
 env/
@@ -89,5 +88,3 @@ notebooks/
 json_responses/
 previus_trainned_models/
 scripts/
-new_pass.py
-password.py
