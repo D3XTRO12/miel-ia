@@ -16,17 +16,16 @@ class MLExplainer:
 
     def __init__(self):
         """Inicializa el explicador cargando estadísticas de referencia."""
-        # Importar el predictor para acceder a los modelos
-        from .predictor import ml_predictor
-        self.predictor = ml_predictor
-
-        # Estadísticas de referencia para interpretar valores
-        self.reference_stats = self._load_reference_stats()
-        print("✅ Sistema de explicabilidad SHAP inicializado.")
+        try:
+            from .predictor import ml_predictor
+            self.predictor = ml_predictor
+            self.reference_stats = self._load_reference_stats()
+        except Exception as e:
+            raise RuntimeError(f"MLExplainer initialization error: {e}")
+        
 
     def _load_reference_stats(self) -> Dict[str, Dict[str, float]]:
         """Carga estadísticas de referencia para interpretar valores de características."""
-        # Estas son las estadísticas que proporcionaste
         return {
             'standard_deviation_e1': {'mean': 0.2895, 'std': 0.2465, 'normal_min': 0.0215, 'normal_max': 0.9346},
             'standard_deviation_e2': {'mean': 0.3072, 'std': 0.2446, 'normal_min': 0.0180, 'normal_max': 0.9372},
@@ -114,28 +113,24 @@ class MLExplainer:
         """Explica las predicciones de los modelos binarios usando SHAP."""
         explanations = []
 
-        # Extraer predicciones del formato nested
         if 'predictions' in predictions:
             pred_dict = predictions['predictions']
         else:
             pred_dict = predictions
 
         try:
-            # Explicar Random Forest
             rf_explanation = self._explain_model(
                 self.predictor.binary_rf, df, "Random Forest",
                 pred_dict.get("Random_Forest", 0), "binary"
             )
             explanations.append(rf_explanation)
 
-            # Explicar XGBoost
             xgb_explanation = self._explain_model(
                 self.predictor.binary_xgb, df, "XGBoost",
                 pred_dict.get("XGBoost", 0), "binary"
             )
             explanations.append(xgb_explanation)
 
-            # Para Keras, usar un enfoque simplificado
             keras_explanation = self._explain_keras_model(
                 df, "TensorFlow Logistic Regression",
                 pred_dict.get("TensorFlow_Logistic_Regression", 0), "binary"
@@ -143,7 +138,7 @@ class MLExplainer:
             explanations.append(keras_explanation)
 
         except Exception as e:
-            print(f"⚠️ Error en explicación binaria: {e}")
+            raise RuntimeError(f"Binary explanation error: {e}")
 
         return explanations
 
@@ -151,28 +146,24 @@ class MLExplainer:
         """Explica las predicciones de los modelos de clasificación usando SHAP."""
         explanations = []
 
-        # Extraer predicciones del formato nested
         if 'predictions' in predictions:
             pred_dict = predictions['predictions']
         else:
             pred_dict = predictions
 
         try:
-            # Explicar Random Forest
             rf_explanation = self._explain_model(
                 self.predictor.classify_rf, df, "Random Forest",
                 pred_dict.get("Random_Forest", 0), "classification"
             )
             explanations.append(rf_explanation)
 
-            # Explicar XGBoost
             xgb_explanation = self._explain_model(
                 self.predictor.classify_xgb, df, "XGBoost",
                 pred_dict.get("XGBoost", 0), "classification"
             )
             explanations.append(xgb_explanation)
 
-            # Para Keras, usar un enfoque simplificado
             keras_explanation = self._explain_keras_model(
                 df, "TensorFlow Logistic Regression",
                 pred_dict.get("TensorFlow_Logistic_Regression", 0), "classification"
@@ -180,7 +171,7 @@ class MLExplainer:
             explanations.append(keras_explanation)
 
         except Exception as e:
-            print(f"⚠️ Error en explicación de clasificación: {e}")
+            raise RuntimeError(f"Classification explanation error: {e}")
 
         return explanations
 
@@ -188,36 +179,32 @@ class MLExplainer:
                        prediction: int, task_type: str) -> Dict[str, Any]:
         """Explica un modelo individual usando SHAP."""
         try:
-            # Crear explicador SHAP apropiado
             explainer = shap.TreeExplainer(model)
             shap_values = explainer.shap_values(df)
 
-            # Para clasificación multiclase, tomar los valores SHAP de la clase predicha
             if task_type == "classification" and isinstance(shap_values, list):
                 if len(shap_values) > prediction:
                     shap_values = shap_values[prediction]
                 else:
                     shap_values = shap_values[0]
 
-            # Convertir a array 1D si es necesario
             if shap_values.ndim > 1:
                 shap_values = shap_values[0]
 
-            # Obtener características más importantes
             feature_importance = self._get_feature_importance(df, shap_values)
 
             return {
                 "model_name": model_name,
                 "prediction": prediction,
                 "task_type": task_type,
-                "top_features": feature_importance[:10],  # Top 10 características
+                "top_features": feature_importance[:10], 
                 "explanation_summary": self._generate_explanation_summary(
                     feature_importance, prediction, task_type
                 )
             }
 
         except Exception as e:
-            print(f"⚠️ Error explicando {model_name}: {e}")
+            raise RuntimeError(f"Model explanation error - model failed: {model_name}: {e}")
             return {
                 "model_name": model_name,
                 "prediction": prediction,
@@ -231,7 +218,6 @@ class MLExplainer:
                              prediction: int, task_type: str) -> Dict[str, Any]:
         """Explicación simplificada para modelos de Keras."""
         try:
-            # Para modelos de Keras, usar análisis estadístico básico
             feature_importance = []
 
             for feature in df.columns:
@@ -239,12 +225,10 @@ class MLExplainer:
                 stats = self.reference_stats.get(feature, {})
 
                 if stats:
-                    # Calcular z-score
                     mean = stats.get('mean', 0)
                     std = stats.get('std', 1)
                     z_score = (value - mean) / std if std > 0 else 0
 
-                    # Determinar estado
                     normal_min = stats.get('normal_min', mean - 2 * std)
                     normal_max = stats.get('normal_max', mean + 2 * std)
 
@@ -258,12 +242,11 @@ class MLExplainer:
                     feature_importance.append({
                         "feature": feature,
                         "actual_value": float(value),
-                        "impact": abs(z_score) * 0.1,  # Impacto simulado
+                        "impact": abs(z_score) * 0.1,  
                         "status": status,
                         "z_score": float(z_score)
                     })
 
-            # Ordenar por impacto absoluto
             feature_importance.sort(key=lambda x: abs(x['impact']), reverse=True)
 
             return {
@@ -275,7 +258,7 @@ class MLExplainer:
             }
 
         except Exception as e:
-            print(f"⚠️ Error explicando Keras {model_name}: {e}")
+            raise RuntimeError(f"Keras model explanation error: {e}")
             return {
                 "model_name": model_name,
                 "prediction": prediction,
@@ -294,10 +277,8 @@ class MLExplainer:
                 shap_value = float(shap_values[i])
                 actual_value = float(df[feature].iloc[0])
 
-                # Obtener estadísticas de referencia
                 stats = self.reference_stats.get(feature, {})
 
-                # Calcular z-score si tenemos estadísticas
                 z_score = 0
                 status = "unknown"
 
@@ -306,7 +287,6 @@ class MLExplainer:
                     std = stats.get('std', 1)
                     z_score = (actual_value - mean) / std if std > 0 else 0
 
-                    # Determinar estado del valor
                     normal_min = stats.get('normal_min', mean - 2 * std)
                     normal_max = stats.get('normal_max', mean + 2 * std)
 
@@ -317,7 +297,6 @@ class MLExplainer:
                     else:
                         status = "normal"
 
-                # Extraer electrodo y métrica
                 electrode = "unknown"
                 metric = feature
                 if "_e" in feature:
@@ -338,7 +317,6 @@ class MLExplainer:
                     "z_score": float(z_score)
                 })
 
-        # Ordenar por impacto absoluto
         feature_importance.sort(key=lambda x: x['impact'], reverse=True)
         return feature_importance
 
@@ -366,7 +344,6 @@ class MLExplainer:
         """Genera insights de resumen cruzando todas las explicaciones."""
         all_features = []
 
-        # Recopilar todas las características importantes
         for explanation in binary_explanations + classify_explanations:
             if "top_features" in explanation:
                 all_features.extend(explanation["top_features"])
@@ -374,7 +351,6 @@ class MLExplainer:
         if not all_features:
             return {"error": "No hay características para analizar"}
 
-        # Agrupar por característica
         feature_groups = {}
         for feature_data in all_features:
             feature_name = feature_data.get("feature", "unknown")
@@ -382,13 +358,11 @@ class MLExplainer:
                 feature_groups[feature_name] = []
             feature_groups[feature_name].append(feature_data)
 
-        # Calcular importancia promedio por característica
         feature_summary = []
         for feature_name, feature_list in feature_groups.items():
             avg_impact = np.mean([f.get("impact", 0) for f in feature_list])
             avg_shap = np.mean([f.get("shap_value", 0) for f in feature_list])
 
-            # Tomar el primer elemento para metadatos
             first_feature = feature_list[0]
 
             feature_summary.append({
@@ -403,13 +377,10 @@ class MLExplainer:
                 "appearances": len(feature_list)
             })
 
-        # Ordenar por importancia promedio
         feature_summary.sort(key=lambda x: x["average_impact"], reverse=True)
 
-        # Análisis por electrodos
         electrode_analysis = self._analyze_by_electrodes(feature_summary)
 
-        # Análisis por métricas
         metric_analysis = self._analyze_by_metrics(feature_summary)
 
         return {
@@ -438,7 +409,6 @@ class MLExplainer:
                 "feature_count": len(impacts)
             }
 
-        # Ordenar por impacto promedio
         sorted_electrodes = sorted(electrode_analysis.items(),
                                    key=lambda x: x[1]["average_impact"], reverse=True)
 
@@ -465,7 +435,6 @@ class MLExplainer:
                 "feature_count": len(impacts)
             }
 
-        # Ordenar por impacto promedio
         sorted_metrics = sorted(metric_analysis.items(),
                                 key=lambda x: x[1]["average_impact"], reverse=True)
 
@@ -483,7 +452,6 @@ class MLExplainer:
         interpretation = f"El factor más influyente es {top_feature['metric']} en {top_feature['electrode']} "
         interpretation += f"con un valor de {top_feature['actual_value']:.3f} ({top_feature['status']}). "
 
-        # Contar características anómalas
         abnormal_count = sum(1 for f in feature_summary[:5] if f['status'] != 'normal')
         if abnormal_count > 0:
             interpretation += f"Se detectaron {abnormal_count} características con valores anómalos "
@@ -494,5 +462,4 @@ class MLExplainer:
         return interpretation
 
 
-# --- Instancia Única (Singleton) ---
 ml_explainer = MLExplainer()

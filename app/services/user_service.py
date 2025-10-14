@@ -13,7 +13,7 @@ class UserService:
     def __init__(self, user_repo: UserRepo):
         self.__user_repo = user_repo
 
-    # --- MÉTODOS DE BÚSQUEDA ---
+    #Get Methods
     def find_all(self, db: Session, *, skip: int = 0, limit: int = 100) -> List[UserBaseDTO]:
         """Llama al repo para obtener todos los usuarios."""
         users = self.__user_repo.get_all(db, skip=skip, limit=limit)
@@ -53,18 +53,14 @@ class UserService:
                 detail=f"User with email {email} not found"
             )
         return user
-    # --- FIN DE MÉTODOS DE BÚSQUEDA ---
-
+    #Post Method
     def create_user(self, db: Session, user_create: UserCreateInternal) -> UserBaseDTO:
         """Crea un nuevo usuario."""
-        # Validar que el email no esté duplicado
         if self.__user_repo.email_exists(db, email=user_create.email):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Email already registered"
-            )
-        
-        # Validar que el DNI no esté duplicado
+            )        
         if self.__user_repo.dni_exists(db, dni=user_create.dni):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -77,11 +73,10 @@ class UserService:
 
         return self.__user_repo.create(db, obj_in=user_data)
 
+    #Put Method
     def update(self, db: Session, user_id: uuid.UUID, user_update: UserUpdateDTO) -> UserBaseDTO:
         """Actualiza un usuario."""
-        db_user = self.find_by_id(db, user_id) # Reutilizamos find_by_id para obtener y validar
-        
-        # Validar email único si se está actualizando
+        db_user = self.find_by_id(db, user_id) 
         if user_update.email and user_update.email != db_user.email:
             if self.__user_repo.email_exists(db, email=user_update.email):
                 raise HTTPException(
@@ -89,7 +84,6 @@ class UserService:
                     detail="Email already registered by another user"
                 )
         
-        # Validar DNI único si se está actualizando
         if user_update.dni and user_update.dni != db_user.dni:
             if self.__user_repo.dni_exists(db, dni=user_update.dni):
                 raise HTTPException(
@@ -98,46 +92,22 @@ class UserService:
                 )
 
         return self.__user_repo.update(db, db_obj=db_user, obj_in=user_update)
+    
+    #Delete Method
     def delete(self, db: Session, user_id: uuid.UUID) -> UserBaseDTO:
-        """Elimina un usuario y todas sus relaciones asociadas."""
-        # Verificar que el usuario existe
-        db_user = self.find_by_id(db, user_id)
-        
+        """Elimina un usuario y todas sus relaciones asociadas (vía repositorio)."""
+        # Verificar existencia
+        user = self.find_by_id(db, user_id)
         try:
-            # Importar el modelo UserRole
-            from ..infrastructure.db.models.user_role import UserRole
-            
-            # 1. Debug: Verificar cuántas relaciones existen
-            relations_count = db.query(UserRole).filter(UserRole.user_id == user_id).count()
-            print(f"Found {relations_count} user_role relations for user {user_id}")
-            
-            # 2. Eliminar las relaciones si existen
-            if relations_count > 0:
-                # Obtener las relaciones
-                user_roles = db.query(UserRole).filter(UserRole.user_id == user_id).all()
-                
-                # Eliminar cada una
-                for user_role in user_roles:
-                    print(f"Deleting user_role: {user_role.id}")
-                    db.delete(user_role)
-                
-                # Flush después de eliminar relaciones
-                db.flush()
-                
-                # Verificar que se eliminaron
-                remaining = db.query(UserRole).filter(UserRole.user_id == user_id).count()
-                print(f"Remaining relations after delete: {remaining}")
-            
-            # 3. Ahora eliminar el usuario
-            print(f"Deleting user: {user_id}")
-            db.delete(db_user)
-            db.flush()
-            
-            return db_user
-            
-        except Exception as e:
-            print(f"Error in delete: {str(e)}")
+            deleted_user = self.__user_repo.delete_with_relations(db, id=user_id)
+            return deleted_user
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"User with id {user_id} not found"
+            )
+        except RuntimeError as e:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Error deleting user and associated data: {str(e)}"
+                detail=str(e)
             )

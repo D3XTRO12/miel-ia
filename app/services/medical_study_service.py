@@ -17,29 +17,25 @@ class MedicalStudyService:
         self.__user_repo = user_repo
 
     def create_study(self, db: Session, study_data: MedicalStudyCreateDTO):
-        # 1. Validar que el código de acceso no exista
+        """
+        Crea un nuevo estudio médico con validaciones.
+        """
         if self.__medical_study_repo.get_by_access_code(db, access_code=study_data.access_code):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Access code already exists."
             )
 
-        # 2. Validar doctor
         doctor = self.__user_repo.get(db, id=study_data.doctor_id)
         if not doctor:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Doctor not found.")
         
-        # OBTENER LOS IDs REALES DE ROLES DESDE LA BD
         admin_role_id, doctor_role_id, patient_role_id = self.__get_role_ids_from_db(db)
         
         doctor_role_ids = [str(role.id) for role in doctor.roles]
         doctor_role_names = [role.name for role in doctor.roles]
         
-        print(f"Doctor {doctor.id} has role names: {doctor_role_names}")
-        print(f"Doctor {doctor.id} has role IDs: {doctor_role_ids}")
-        print(f"Expected Doctor role ID: {doctor_role_id}")
         
-        # Verificar por ID del rol Doctor
         has_doctor_role = (
             "Doctor" in doctor_role_names or 
             str(doctor_role_id) in doctor_role_ids
@@ -51,18 +47,13 @@ class MedicalStudyService:
                 detail=f"User is not a doctor. User has roles: {doctor_role_names}"
             )
         
-        # 3. Validar patient
         patient = self.__user_repo.get(db, id=study_data.patient_id)
         if not patient:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Patient not found.")
         
         patient_role_ids = [str(role.id) for role in patient.roles]
         patient_role_names = [role.name for role in patient.roles]
-        
-        print(f"Patient {patient.id} has role names: {patient_role_names}")
-        print(f"Expected Patient role ID: {patient_role_id}")
-        
-        # Verificar por ID del rol Patient
+
         has_patient_role = (
             "Patient" in patient_role_names or 
             str(patient_role_id) in patient_role_ids
@@ -74,7 +65,6 @@ class MedicalStudyService:
                 detail=f"User is not a patient. User has roles: {patient_role_names}"
             )
 
-        # 4. Validar technician (opcional)
         if study_data.technician_id:
             technician = self.__user_repo.get(db, id=study_data.technician_id)
             if not technician:
@@ -86,10 +76,9 @@ class MedicalStudyService:
             study = self.__medical_study_repo.create(db, obj_in=study_dict)
             return MedicalStudyResponseDTO.model_validate(study)
         except Exception as e:
-            print(f"❌ Error creating study: {e}")
-            raise HTTPException(
+            raise HTTPException as http_except(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Error creating medical study"
+                detail="Error creating medical study, backend error: " + str(http_except)
             )
 
     def __get_role_ids_from_db(self, db: Session):
@@ -97,7 +86,6 @@ class MedicalStudyService:
         Obtiene los IDs reales de roles desde la base de datos
         """
         try:
-            # Obtener roles desde la BD
             from ..infrastructure.db.models.role import Role
             roles = db.query(Role).all()
             
@@ -105,22 +93,15 @@ class MedicalStudyService:
             for role in roles:
                 role_map[role.name] = role.id
             
-            print("🔍 Role IDs from database:")
-            for name, role_id in role_map.items():
-                print(f"  {name}: {role_id}")
-            
             return (
                 role_map.get('Admin'),
                 role_map.get('Doctor'), 
                 role_map.get('Patient')
             )
         except Exception as e:
-            print(f"❌ Error getting roles from DB: {e}")
-            # Fallback a los IDs que sabemos que existen
-            return (
-                UUID("2dedc6ff-999d-4080-bd2b-918e6ce6159d"),  # Admin
-                UUID("ac3e3928-fd43-4008-bdf1-13481820930e"),  # Doctor  
-                UUID("f84bbfdd-1518-4e1f-9a11-5fc50cdcb3e9")   # Patient
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error fetching roles from database: " + str(e)
             )
 
 
@@ -129,29 +110,26 @@ class MedicalStudyService:
         """
         Obtiene un estudio médico por ID y lo convierte a DTO.
         """
-        print(f"🔍 MedicalStudyService.get_by_id - Buscando: {study_id}")
-        
-        # Cargar el estudio con todas las relaciones
-        study = db.query(MedicalStudy).options(
-            joinedload(MedicalStudy.patient),
-            joinedload(MedicalStudy.doctor),
-            joinedload(MedicalStudy.technician)
-        ).filter(MedicalStudy.id == study_id).first()
-        
-        if not study:
-            print(f"❌ MedicalStudyService.get_by_id - NO encontrado: {study_id}")
-            return None
-        
-        print(f"✅ MedicalStudyService.get_by_id - Encontrado: {study.id}")
-        print(f"🔍 Study created_at: {study.created_at}")
         
         try:
-            # Crear un diccionario manualmente para el DTO
+            study = db.query(MedicalStudy).options(
+                joinedload(MedicalStudy.patient),
+                joinedload(MedicalStudy.doctor),
+                joinedload(MedicalStudy.technician)
+            ).filter(MedicalStudy.id == str(study_id)).first()
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error fetching medical study from database: " + str(e)
+            )
+
+        
+        try:
             study_dict = {
                 "id": study.id,
                 "access_code": study.access_code,
                 "status": study.status,
-                "creation_date": study.created_at,  # ← Mapear manualmente
+                "creation_date": study.created_at, 
                 "ml_results": study.ml_results,
                 "clinical_data": study.clinical_data,
                 "csv_file_id": study.csv_file_id,
@@ -161,36 +139,26 @@ class MedicalStudyService:
             }
             
             dto = MedicalStudyResponseDTO(**study_dict)
-            print(f"✅ DTO creado exitosamente: {dto.id}")
             return dto
             
         except Exception as e:
-            print(f"❌ Error creando DTO para estudio {study.id}: {e}")
-            # Fallback: intentar con model_validate
-            try:
-                dto = MedicalStudyResponseDTO.model_validate(study)
-                return dto
-            except Exception as e2:
-                print(f"❌ Error también con model_validate: {e2}")
-                raise e
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Error converting medical study to DTO: " + str(e)
+            )
     
     def get_by_patient_dni(self, db: Session, *, dni: str, access_code: str) -> List[MedicalStudy]:
         """
         Obtiene estudios por DNI del paciente con validación de código de acceso.
         """
-        # Validaciones de negocio
         if not dni or not access_code:
             raise ValueError("DNI y código de acceso son requeridos")
         
-        # Formatear/limpiar DNI si es necesario
         dni = dni.strip().replace("-", "").replace(".", "")
         
-        # Llamar al repositorio
         studies = self.__medical_study_repo.get_by_patient_dni_and_access_code(db, dni, access_code)
 
         if not studies:
-            # Log de seguridad: intento de acceso con credenciales inválidas
-            logger.warning(f"Intento de acceso con DNI {dni} y código inválido")
             raise HTTPException(
                 status_code=404, 
                 detail="No se encontraron estudios o credenciales inválidas"
@@ -221,7 +189,6 @@ class MedicalStudyService:
         """
         studies = self.__medical_study_repo.get_all(db)
         
-        # Convertir cada objeto MedicalStudy a MedicalStudyResponseDTO
         return [
             MedicalStudyResponseDTO.model_validate(study) 
             for study in studies
@@ -231,34 +198,29 @@ class MedicalStudyService:
         """
         Verifica que un estudio exista y luego lo elimina.
         """
-        # Reutilizamos el método get_study para manejar el caso de que no exista (error 404)
         study_to_delete = self.get_by_id(db, study_id=study_id)
         
-        # Si existe, llama al repositorio para eliminarlo
         return self.__medical_study_repo.delete(db, id=study_to_delete.id)
 
     def update(self, db: Session, *, study_id: UUID, study_update: MedicalStudyUpdateDTO):
         """
         Actualiza un estudio médico de forma parcial (PATCH).
         """
-        # 1. Obtener el objeto de BD directamente usando get_by_id
-        db_study = self.__medical_study_repo.get_by_id(db, id=study_id)  # ← CAMBIO: usar get_by_id
+        db_study = self.__medical_study_repo.get_by_id(db, id=study_id)
         if not db_study:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Medical study with ID {study_id} not found."
             )
         
-        # 2. Convertir el DTO a diccionario
         update_data = study_update.model_dump(exclude_unset=True)
 
-        # 3. Validaciones de negocio (si necesitas)
         if "doctor_id" in update_data:
             new_doctor_id = update_data["doctor_id"]
             doctor = self.__user_repo.get(db, id=new_doctor_id)
             if not doctor or "DOCTOR" not in [role.name for role in doctor.roles]:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid new Doctor ID: {new_doctor_id}")
         
-        # 4. Actualizar y devolver como DTO
+
         updated_study = self.__medical_study_repo.update(db, db_obj=db_study, obj_in=update_data)
         return MedicalStudyResponseDTO.model_validate(updated_study)

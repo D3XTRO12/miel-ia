@@ -2,11 +2,9 @@ from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-# Imports de configuración y base de datos
 from .core.config import settings
 from .core.db import get_db_session, check_database_connection
 
-# Imports de routers
 from .api.routes.test_binary import test_binary
 from .api.routes.train_binary import train_binary
 from .api.routes.train_classify import train_classify
@@ -23,29 +21,25 @@ async def lifespan(app: FastAPI):
     Evento de startup y shutdown de la aplicación
     """
 
-    # Verificar conexión a base de datos con más información
     try:
         db_connected = check_database_connection()
         if db_connected:
-            print("✅ Database connection successful")
+            pass
         else:
-            # En desarrollo, podemos continuar sin base de datos
             if settings.is_development:
-                print("🔧 Running in development mode without database")
+                log.warning("DB connection failed, continuing in development mode without DB.")
             else:
-                print("❌ Database required in production mode")
+                log.error("Database required in production mode")
                 raise Exception("Database connection failed")
     except Exception as e:
-        print(f"❌ Database connection error: {str(e)}")
+        raise Exception(f"Database connection error: {str(e)}")
         if settings.is_development:
-            print("🔧 Continuing in development mode...")
+            log.warning("🔧 Continuing in development mode...")
         else:
             raise Exception(f"Database connection failed: {str(e)}")
     
     yield
-    
-    # Shutdow
-# Crear la aplicación FastAPI
+
 app = FastAPI(
     title=settings.APP,
     description=settings.APP_DESCRIPTION,
@@ -54,7 +48,6 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Configurar CORS usando las propiedades
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
@@ -63,7 +56,6 @@ app.add_middleware(
     allow_headers=settings.cors_headers,
 )
 
-# Incluir los routers
 app.include_router(test_binary, tags=["Test"])
 app.include_router(test_classify, tags=["Test"])
 app.include_router(train_binary, tags=["Train"])
@@ -104,21 +96,19 @@ async def health_check():
         "version": settings.APP_VERSION
     }
 
-# Dependency para obtener sesión de base de datos
 def get_db():
     """
     Dependency para inyectar sesión de base de datos
     """
     return get_db_session()
 
-# Para desarrollo local
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
         "main:app",
         host=settings.HOST,
         port=settings.PORT,
-        reload=False,  # ❌ Deshabilitar reload para evitar ciclos
+        reload=False,  
         workers=1,
         log_level=settings.LOG_LEVEL.lower()
     )

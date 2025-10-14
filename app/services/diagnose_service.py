@@ -37,7 +37,8 @@ class DiagnoseService:
                 joinedload(MedicalStudy.patient),
                 joinedload(MedicalStudy.doctor),
                 joinedload(MedicalStudy.technician)
-            ).filter(MedicalStudy.id == study_id).first()
+            ).filter(MedicalStudy.id == str(study_id)).first()
+
             
             if not study_model:
                 print(f"❌ Error crítico: DTO encontrado pero modelo no: {study_id}")

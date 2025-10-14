@@ -11,57 +11,44 @@ class MLPredictor:
     """
     def __init__(self):
         try:
-            # Construye la ruta base a la carpeta de modelos desde la ubicación de este archivo
             base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "trained_models"))
             
-            # Carga modelos binarios
             self.binary_rf = load(os.path.join(base_path, "binary", "random_forest_model.pkl"))
             self.binary_xgb = load(os.path.join(base_path, "binary", "xgboost_model.pkl"))
             self.binary_log = load_model(os.path.join(base_path, "binary", "logistic_regression_model.keras"))
 
-            # Carga modelos de clasificación
             self.classify_rf = load(os.path.join(base_path, "classify", "random_forest_model.pkl"))
             self.classify_xgb = load(os.path.join(base_path, "classify", "xgboost_model.pkl"))
             self.classify_log = load_model(os.path.join(base_path, "classify", "logistic_regression_model.keras"))
             
-            print("✅ Modelos de ML cargados en memoria exitosamente.")
         except FileNotFoundError as e:
-            print(f"❌ ERROR CRÍTICO: No se pudo encontrar un archivo de modelo. La aplicación no podrá realizar diagnósticos. Detalle: {e}")
-            raise
+            raise FileNotFoundError(f"File not found - Background task: {e}")
         except Exception as e:
-            print(f"❌ ERROR CRÍTICO: Ocurrió un error inesperado al cargar los modelos: {e}")
-            raise
+            raise RuntimeError(f"Error loading models - Background task: {e}")
 
     def _get_binary_probabilities(self, model, df: pd.DataFrame, model_type: str):
         """Obtiene probabilidades para modelos binarios."""
         if model_type == "keras":
-            # Para Keras, predict devuelve probabilidades directamente
             probs = model.predict(df, verbose=0)
             return probs.flatten()
         else:
-            # Para sklearn, usar predict_proba
             if hasattr(model, 'predict_proba'):
                 probs = model.predict_proba(df)
-                # Para binario, tomar probabilidad de clase positiva (índice 1)
                 return probs[:, 1]
             else:
-                # Fallback para modelos sin predict_proba
                 return model.predict(df).flatten()
 
     def _get_multiclass_probabilities(self, model, df: pd.DataFrame, model_type: str):
         """Obtiene probabilidades para modelos multiclase."""
         if model_type == "keras":
-            # Para Keras, predict devuelve todas las probabilidades
             probs = model.predict(df, verbose=0)
-            return probs  # Retorna array 2D: [n_samples, n_classes]
+            return probs
         else:
-            # Para sklearn, usar predict_proba
             if hasattr(model, 'predict_proba'):
                 return model.predict_proba(df)
             else:
-                # Fallback: convertir predicciones discretas a one-hot
                 preds = model.predict(df)
-                n_classes = 3  # Asumiendo 3 clases (0, 1, 2)
+                n_classes = 3  
                 one_hot = np.zeros((len(preds), n_classes))
                 for i, pred in enumerate(preds):
                     one_hot[i, int(pred)] = 1.0
@@ -71,17 +58,14 @@ class MLPredictor:
         """Realiza predicciones con el ensamblaje de modelos binarios."""
         df_single_row = df.head(1)
         
-        # Obtener probabilidades para cada modelo
         rf_probs = self._get_binary_probabilities(self.binary_rf, df_single_row, "sklearn")
         xgb_probs = self._get_binary_probabilities(self.binary_xgb, df_single_row, "sklearn")
         keras_probs = self._get_binary_probabilities(self.binary_log, df_single_row, "keras")
         
-        # Predicciones discretas basadas en umbral 0.5
         rf_pred = int(rf_probs[0] > 0.5)
         xgb_pred = int(xgb_probs[0] > 0.5)
         keras_pred = int(keras_probs[0] > 0.5)
         
-        # Calcular confianza del ensemble (promedio de probabilidades)
         ensemble_confidence = float(np.mean([rf_probs[0], xgb_probs[0], keras_probs[0]]))
         
         return {
@@ -102,21 +86,17 @@ class MLPredictor:
         """Realiza predicciones con el ensamblaje de modelos de clasificación."""
         df_single_row = df.head(1)
         
-        # Obtener probabilidades para cada modelo
         rf_probs = self._get_multiclass_probabilities(self.classify_rf, df_single_row, "sklearn")
         xgb_probs = self._get_multiclass_probabilities(self.classify_xgb, df_single_row, "sklearn")
         keras_probs = self._get_multiclass_probabilities(self.classify_log, df_single_row, "keras")
         
-        # Predicciones discretas (clase con mayor probabilidad)
         rf_pred = int(np.argmax(rf_probs[0]))
         xgb_pred = int(np.argmax(xgb_probs[0]))
         keras_pred = int(np.argmax(keras_probs[0]))
         
-        # Determinar clase más votada
         predictions = [rf_pred, xgb_pred, keras_pred]
         predicted_class = max(set(predictions), key=predictions.count)
         
-        # Calcular confianza para la clase predicha
         rf_conf = rf_probs[0][predicted_class]
         xgb_conf = xgb_probs[0][predicted_class]
         keras_conf = keras_probs[0][predicted_class]
@@ -137,5 +117,4 @@ class MLPredictor:
             "ensemble_confidence": ensemble_confidence
         }
 
-# --- Instancia Única (Singleton) ---
 ml_predictor = MLPredictor()

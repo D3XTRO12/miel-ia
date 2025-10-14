@@ -43,16 +43,13 @@ class UserRoleService:
         """
         normalized_role_id = self._normalize_id(role_id)
         
-        # Obtener las relaciones user_role para el role_id dado
         user_roles = self.__user_role_repo.get_by_role_id(db, normalized_role_id)
         
-        # Extraer los user_ids
         user_ids = [ur.user_id for ur in user_roles]
         
         if not user_ids:
             return []
         
-        # Obtener los usuarios completos
         users = []
         for user_id in user_ids:
             user = self.__user_repo.get(db, id=user_id)
@@ -70,32 +67,24 @@ class UserRoleService:
         return [UserRoleResponseDTO.model_validate(ur) for ur in user_roles_orm]
 
     def create_user_role(self, db: Session, obj_in: UserRoleCreateDTO) -> UserRoleResponseDTO:
-        # Normalizar IDs
         user_id = self._normalize_id(obj_in.user_id)
         role_id = self._normalize_id(obj_in.role_id)
+
         
-        print(f"🎯 UserRoleService.create_user_role()")
-        print(f"   User ID: {repr(user_id)}")
-        print(f"   Role ID: {repr(role_id)}")
-        
-        # Validar existencia de user
         user = self.__user_repo.get(db, id=user_id)
         print(f"   User encontrado: {user is not None}")
         if not user:
             raise HTTPException(status_code=404, detail="User not found (user_role_service)")
         
-        # Validar existencia de role
         role = self.__role_repo.get_by_id(role_id)
         print(f"   Role encontrado: {role is not None}")
         if not role:
             raise HTTPException(status_code=404, detail="Role not found (user_role_service)")
 
-        # Evitar duplicados
         existing = self.__user_role_repo.get_by_user_and_role(db, user_id, role_id)
         if existing:
             raise HTTPException(status_code=400, detail="User already has this role assigned (user_role_service)")
         
-        # Crear nuevo objeto con IDs normalizados
         normalized_obj_in = UserRoleCreateDTO(
             user_id=user_id,
             role_id=role_id

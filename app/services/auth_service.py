@@ -27,7 +27,6 @@ class AuthService:
         self.__user_role_service = user_role_service
 
     def login(self, db: Session, user_login: UserLogin) -> Token:
-        # Autenticación básica primero
         user = self.__user_repo.authenticate(db, email=user_login.email, password=user_login.password)
         if not user:
             raise HTTPException(
@@ -36,17 +35,14 @@ class AuthService:
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-        # Obtener usuario completo a través del UserService
         user_dto = self.__user_service.find_by_email(db, user_login.email)
         
-        # Obtener roles a través del UserRoleService
         user_roles: List[UserRoleResponseDTO] = self.__user_role_service.get_user_roles_by_user_id(db, user_dto.id)
         
-        # Preparar datos para el token
         token_data = {
             "sub": user.email,
-            "user_id": str(user_dto.id),  # Convertir UUID a string
-            "roles": [str(role.role_id) for role in user_roles]  # Convertir cada role_id a string
+            "user_id": str(user_dto.id), 
+            "roles": [str(role.role_id) for role in user_roles]
         }
 
         access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)

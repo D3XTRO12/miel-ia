@@ -11,7 +11,6 @@ class RoleRepo(BaseRepository[Role]):
 
     def get_by_id(self, id: Union[str, uuid.UUID]) -> Optional[Role]:
         """Obtiene el rol completo por su ID (acepta string o UUID)"""
-        # ✅ Convertir a string si es UUID
         if isinstance(id, uuid.UUID):
             id = str(id)
         
@@ -21,7 +20,6 @@ class RoleRepo(BaseRepository[Role]):
 
     def get_role_name(self, id: Union[str, uuid.UUID]) -> Optional[str]:
         """Obtiene solo el nombre del rol (acepta string o UUID)"""
-        # ✅ Convertir a string si es UUID
         if isinstance(id, uuid.UUID):
             id = str(id)
             

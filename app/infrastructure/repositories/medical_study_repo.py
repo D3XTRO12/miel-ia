@@ -20,7 +20,7 @@ class MedicalStudyRepo(BaseRepository[MedicalStudy]):
             joinedload(MedicalStudy.patient),
             joinedload(MedicalStudy.doctor), 
             joinedload(MedicalStudy.technician)
-        ).filter(MedicalStudy.id == id).first()
+        ).filter(MedicalStudy.id == str(id)).first()
     
     def get(self, db: Session) -> list[MedicalStudy]:
         """

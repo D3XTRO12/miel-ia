@@ -33,10 +33,8 @@ class FileStorageService:
             FileStorageResponseDTO: Información del archivo guardado
         """
         try:
-            # Leer el contenido del archivo
             file_content = await file.read()
             
-            # Crear el DTO para guardar el archivo
             file_data = FileStorageBaseDTO(
                 filename=custom_filename or file.filename,
                 original_filename=file.filename,
@@ -44,10 +42,9 @@ class FileStorageService:
                 file_size=len(file_content),
                 file_content_binary=file_content,
                 description=description,
-                user_id=user_id  # ← Ya es UUID, no necesita conversión
+                user_id=user_id  
             )
             
-            # Guardar en la base de datos
             saved_file = self.__file_storage_repo.create(db, obj_in=file_data.model_dump())
             
             return FileStorageResponseDTO.model_validate(saved_file)

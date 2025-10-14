@@ -1,59 +1,36 @@
-from sqlalchemy import Engine, create_engine
+from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.orm import sessionmaker, declarative_base
-from sqlalchemy.pool import QueuePool, StaticPool, NullPool
+from sqlalchemy.pool import QueuePool
 from sqlalchemy import event
 from .config import settings
+import os
+from dotenv import load_dotenv
+from pathlib import Path
+from urllib.parse import quote_plus
 
 Base = declarative_base()
-engine_kwargs = {}
 
-db_url = settings.DATABASE_URL.lower()
+engine_kwargs = {
+    "poolclass": QueuePool,
+    "pool_size": 5,
+    "max_overflow": 10,
+    "pool_pre_ping": True,
+    "pool_recycle": 3600,
+    "connect_args": {
+        "connect_timeout": 5,
+        "charset": "utf8mb4"
+    }
+}
 
-if "sqlite" in db_url:
-    engine_kwargs.update({
-        "connect_args": {"check_same_thread": False},
-        "poolclass": StaticPool
-    })
-    @event.listens_for(Engine, "connect")
-    def _set_sqlite_pragma(dbapi_connection, connection_record):
-        cursor = dbapi_connection.cursor()
-        cursor.execute("PRAGMA foreign_keys=ON")
-        cursor.close()
+basedir = os.path.abspath(Path(__file__).parents[2])
+load_dotenv(os.path.join(basedir, '.env'))
 
-elif "mysql" in db_url or "mariadb" in db_url:
-    engine_kwargs.update({
-        "poolclass": QueuePool,
-        "pool_size": 5,
-        "max_overflow": 10,
-        "pool_pre_ping": True,
-        "pool_recycle": 3600,
-        "connect_args": {
-            "connect_timeout": 5,
-            "charset": "utf8mb4"
-        }
-    })
-
-elif "mssql" in db_url or "sqlserver" in db_url:
-    engine_kwargs.update({
-        "poolclass": QueuePool,
-        "pool_size": 5,
-        "max_overflow": 10,
-        "pool_pre_ping": True,
-        "connect_args": {
-            "driver": "ODBC Driver 18 for SQL Server",
-            "TrustServerCertificate": "yes",
-            "Encrypt": "yes",
-            "connection_timeout": 5
-        }
-    })
-
-else:
-    raise ValueError(f"Database URL no soportada: {settings.DATABASE_URL}")
+SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL
 
 try:
-    engine = create_engine(settings.DATABASE_URL, **engine_kwargs)
+    engine = create_engine(SQLALCHEMY_DATABASE_URL, **engine_kwargs)
 except Exception as e:
-    raise ValueError(f"Error al crear el motor de base de datos: {e}")
+    raise ValueError(f"Error al crear el motor de base de datos MySQL: {e}")
 
 SessionLocal = sessionmaker(
     autocommit=False,
@@ -61,7 +38,6 @@ SessionLocal = sessionmaker(
     bind=engine,
     expire_on_commit=False
 )
-
 
 def get_db_session():
     """
@@ -82,9 +58,11 @@ def check_database_connection():
     """
     try:
         with engine.connect() as conn:
-            conn.execute("SELECT 1")
+            conn.execute(text("SELECT 1"))
+        log.info("Conexión a MySQL verificada exitosamente")
         return True
     except Exception as e:
+        log.error(f"Error en conexión a MySQL: {e}")
         return False
 
 def create_tables():
@@ -93,5 +71,27 @@ def create_tables():
     """
     try:
         Base.metadata.create_all(bind=engine)
+        log.info("Tablas de MySQL creadas exitosamente")
     except Exception as e:
-        raise ValueError(f"Error al crear las tablas: {e}")
+        raise ValueError(f"Error al crear las tablas en MySQL: {e}")
+
+def get_database_info():
+    """
+    Obtiene información de la base de datos MySQL
+    """
+    try:
+        with engine.connect() as conn:
+            result = conn.execute("SELECT VERSION()")
+            version = result.scalar()
+            
+            result = conn.execute("SHOW TABLES")
+            tables = [row[0] for row in result]
+            
+            return {
+                "version": version,
+                "tables": tables,
+                "database": settings.DB_NAME,
+                "host": settings.DB_HOST
+            }
+    except Exception as e:
+        return {"error": str(e)}

@@ -1,8 +1,6 @@
-# app/ml_pipeline/helpers.py
 import pandas as pd
 from typing import Dict, Any
 
-# Lista de todas las columnas de características que tus modelos esperan.
 FEATURE_COLUMNS = [
     'standard_deviation_e1', 'standard_deviation_e2', 'standard_deviation_e3', 'standard_deviation_e4',
     'standard_deviation_e5', 'standard_deviation_e6', 'standard_deviation_e7', 'standard_deviation_e8',
@@ -42,26 +40,18 @@ def should_classify(binary_preds: Dict[str, Any]) -> bool:
     """
     print(f"🔍 [DEBUG] Evaluando binary_preds: {binary_preds}")
 
-    # Manejar el formato actual que tiene 'predictions' anidado
     if isinstance(binary_preds, dict) and 'predictions' in binary_preds:
         predictions = binary_preds['predictions']
-        print(f"🔍 [DEBUG] Predicciones extraídas: {predictions}")
     else:
-        # Formato antiguo simple
         predictions = binary_preds
-        print(f"🔍 [DEBUG] Usando formato simple: {predictions}")
 
-    # Contar votos positivos
     positive_votes = 0
     for model_name, prediction in predictions.items():
         if prediction == 1:
             positive_votes += 1
-            print(f"✅ [DEBUG] {model_name}: POSITIVO")
         else:
-            print(f"❌ [DEBUG] {model_name}: NEGATIVO")
-
+            pass
     result = positive_votes >= 2
-    print(f"📊 [DEBUG] Votos positivos: {positive_votes}/3 -> Resultado: {'POSITIVO' if result else 'NEGATIVO'}")
 
     return result
 
@@ -84,20 +74,12 @@ def build_final_verdict(
         classify_explanations: Explicaciones SHAP para modelos de clasificación
         summary_insights: Resumen de insights cruzados
     """
-    print(f"🔍 [DEBUG] build_final_verdict recibió binary_preds: {binary_preds}")
-
-    # CORRECCIÓN CRÍTICA: Usar should_classify para determinar si es positivo
     is_positive = should_classify(binary_preds)
-    print(f"🎯 [DEBUG] Resultado de should_classify: {is_positive}")
-
-    binary_interpretation = "Positivo para EMG" if is_positive else "Negativo para EMG"
-    print(f"📋 [DEBUG] Interpretación binaria final: {binary_interpretation}")
-
+    binary_interpretation = "Posible positivo para EMG" if is_positive else "Posible Negativo para EMG"
     classification_interpretation = "No aplica (Resultado binario fue negativo)"
     final_class = 0
 
-    if classify_preds and is_positive:  # Solo clasificar si es positivo
-        # Manejar formato nested si existe
+    if classify_preds and is_positive: 
         if isinstance(classify_preds, dict) and 'predictions' in classify_preds:
             predictions = classify_preds['predictions']
         else:
@@ -107,14 +89,12 @@ def build_final_verdict(
             votes = list(predictions.values())
             final_class = max(set(votes), key=votes.count)
             classification_interpretation = f"Clasificado en Nivel {final_class}"
-            print(f"📈 [DEBUG] Clasificación final: Nivel {final_class}")
 
-    # Estructura base del resultado - MANTENER EL FORMATO ACTUAL
     result = {
         "final_diagnosis": binary_interpretation,
         "classification_level": final_class,
         "details": {
-            "binary_model_votes": binary_preds,  # Mantener formato original
+            "binary_model_votes": binary_preds,  
             "classification_details": {
                 "was_classified": classify_preds is not None and is_positive,
                 "model_votes": classify_preds,
@@ -123,7 +103,6 @@ def build_final_verdict(
         }
     }
 
-    # Agregar explicabilidad si está disponible
     if binary_explanations or classify_explanations or summary_insights:
         result["explanations"] = {}
 
@@ -136,7 +115,6 @@ def build_final_verdict(
         if summary_insights:
             result["explanations"]["summary_insights"] = summary_insights
 
-        # Agregar metadatos de explicabilidad
         result["explanations"]["metadata"] = {
             "explanation_method": "SHAP (SHapley Additive exPlanations)",
             "explanation_timestamp": pd.Timestamp.now().isoformat(),
@@ -149,7 +127,6 @@ def build_final_verdict(
             }
         }
 
-    print(f"🎉 [DEBUG] Verdict final construido: diagnosis={binary_interpretation}, level={final_class}")
     return result
 
 

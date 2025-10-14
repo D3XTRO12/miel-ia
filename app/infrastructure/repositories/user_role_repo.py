@@ -26,7 +26,6 @@ class UserRoleRepo(BaseRepository[UserRole]):
         return db.query(UserRole).filter(UserRole.role_id == normalized_role_id).all()
 
     def create(self, db: Session, *, obj_in: UserRoleCreateDTO) -> UserRole:
-        # Normalizar IDs en el objeto de entrada
         create_data = obj_in.model_dump()
         create_data['user_id'] = self._normalize_id(create_data['user_id'])
         create_data['role_id'] = self._normalize_id(create_data['role_id'])
@@ -45,7 +44,6 @@ class UserRoleRepo(BaseRepository[UserRole]):
     def update(self, db: Session, *, db_obj: UserRole, obj_in: UserRoleUpdateDTO) -> UserRole:
         update_data = obj_in.model_dump(exclude_unset=True)
         
-        # Normalizar IDs si están presentes en la actualización
         if 'user_id' in update_data:
             update_data['user_id'] = self._normalize_id(update_data['user_id'])
         if 'role_id' in update_data:

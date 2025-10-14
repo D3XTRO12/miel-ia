@@ -46,7 +46,7 @@ def load_models():
         raise TypeError(f"Error: rf_model no parece tener un método 'predict'. Tipo: {type(rf_model)}")
     
     if not hasattr(rf_model, 'predict_proba'):
-        print("⚠️ Advertencia: rf_model no tiene método 'predict_proba', puede causar errores al usarlo.")
+        print(" Advertencia: rf_model no tiene método 'predict_proba', puede causar errores al usarlo.")
 
     try:
         xgb_model = joblib.load(xgb_model_path)

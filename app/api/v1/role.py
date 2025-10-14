@@ -29,6 +29,7 @@ async def create_temp_role(
     role_data: RoleBaseDTO,
     role_service: RoleService = Depends(get_role_service),
     db: Session = Depends(get_db),
+    current_user: UserOut = Depends(get_current_user)
 ):
     """
     TEMPORARY ENDPOINT - Creates a new role with UUID.
@@ -46,7 +47,7 @@ async def create_temp_role(
 async def get_all_roles(
     role_service: RoleService = Depends(get_role_service),
     db: Session = Depends(get_db),
-    # current_user: UserOut = Depends(get_current_user)
+    current_user: UserOut = Depends(get_current_user)
 
 ):
     """
@@ -60,7 +61,7 @@ async def get_role_name_by_id(
     role_id: UUID,
     role_service: RoleService = Depends(get_role_service),
     db: Session = Depends(get_db),
-    # current_user: UserOut = Depends(get_current_user)
+    current_user: UserOut = Depends(get_current_user)
 ):
     """
     Obtiene SOLO el nombre de un rol específico por su UUID.

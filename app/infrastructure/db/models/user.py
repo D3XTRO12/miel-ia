@@ -1,8 +1,6 @@
-from sqlalchemy import Column, DateTime, String, Boolean, func, CHAR
+from sqlalchemy import Column, DateTime, String, Boolean, func
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.dialects.postgresql import UUID
-import uuid
 from .base_model import BaseModel
 
 class User(BaseModel):

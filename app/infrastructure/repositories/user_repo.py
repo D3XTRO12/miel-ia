@@ -98,6 +98,33 @@ class UserRepo(BaseRepository[User]):
         db.delete(user)
         db.commit()
         return user
+    
+    def delete_with_relations(self, db: Session, *, id: Union[str, uuid.UUID]) -> User:
+        """
+        Elimina un usuario y todas sus relaciones en tablas intermedias (ej. user_role).
+        """
+        from ..db.models.user_role import UserRole
+
+        normalized_id = self._normalize_id(id)
+        user = db.query(self.model).filter(self.model.id == normalized_id).first()
+        if not user:
+            raise ValueError(f"Usuario con id {normalized_id} no encontrado")
+
+        try:
+            relations = db.query(UserRole).filter(UserRole.user_id == normalized_id).all()
+            if relations:
+                for rel in relations:
+                    db.delete(rel)
+                db.flush()
+
+            db.delete(user)
+            db.commit()
+            return user
+
+        except Exception as e:
+            db.rollback()
+            raise RuntimeError(f"Error eliminando usuario y sus relaciones: {str(e)}")
+
 
     def authenticate(self, db: Session, *, email: str, password: str) -> Optional[User]:
         user = self.get_by_email(db, email=email)
@@ -110,4 +137,4 @@ class UserRepo(BaseRepository[User]):
     def get_multiple_by_ids(self, db: Session, user_ids: List[Union[str, uuid.UUID]]) -> List[User]:
         """Obtiene múltiples usuarios por sus UUIDs (acepta strings o UUIDs)"""
         normalized_ids = [self._normalize_id(user_id) for user_id in user_ids]
-        return db.query(User).filter(User.id.in_(normalized_ids)).all()
+        return db.query(User).filter(User.id.in_(normalized_ids)).all()    

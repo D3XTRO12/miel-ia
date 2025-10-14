@@ -30,7 +30,7 @@ class MedicalStudyResponseDTO(BaseDTO):
     id: UUID
     access_code: str
     status: str
-    creation_date: Optional[datetime] = None  # ← QUITAR el alias
+    creation_date: Optional[datetime] = None  
     ml_results: Optional[str] = None
     clinical_data: Optional[str] = None
     csv_file_id: Optional[UUID] = None  

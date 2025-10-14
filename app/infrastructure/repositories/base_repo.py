@@ -11,7 +11,7 @@ class BaseRepository(ABC, Generic[T]):
 
     def __init__(self, model: Type[T], db: Session = None):
         self.model = model
-        self._db = db  # Usamos _db para indicar que es interno
+        self._db = db  
     
     @property
     def db(self) -> Session:

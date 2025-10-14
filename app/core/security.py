@@ -28,45 +28,33 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         print(f"  - Hash almacenado: {hashed_password[:50]}...")
         
         if not hashed_password.startswith('$argon2'):
-            print(f"❌ [SECURITY ERROR] Hash no tiene formato Argon2")
+            raise ValueError("Unknown hash format, expected Argon2 hash.")
             return False
-        
         result = pwd_context.verify(plain_password, hashed_password)
-        print(f"  - Resultado verificación: {result}")
-
+        log.info(f"Verification result: {result}")
         if not result:
-            print(f"  - ⚠️ Verificación fallida, intentando diagnóstico...")
             try:
-                new_hash = pwd_context.hash(plain_password)
-                print(f"  - Hash generado ahora: {new_hash[:50]}...")
-                
+                new_hash = pwd_context.hash(plain_password)                
                 stored_params = hashed_password.split('$')[3] if len(hashed_password.split('$')) > 3 else "unknown"
-                new_params = new_hash.split('$')[3] if len(new_hash.split('$')) > 3 else "unknown"
-                
-                print(f"  - Parámetros almacenados: {stored_params}")
-                print(f"  - Parámetros actuales: {new_params}")
-                
+                new_params = new_hash.split('$')[3] if len(new_hash.split('$')) > 3 else "unknown"                
                 if stored_params != new_params:
-                    print("  - 🔄 Parámetros diferentes detectados, necesita rehash")
-                    
+                    log.warning("Hash parameters differ, consider rehashing the password.")
+
             except Exception as debug_e:
-                print(f"  - Error en diagnóstico: {debug_e}")
-        
+                log.error(f"Error during rehashing attempt: {debug_e}")
         return result
         
     except Exception as e:
-        print(f"❌ [SECURITY ERROR] Excepción en verify_password: {e}")
+        log.error(f"Error in verify_password: {e}")
         return False
 
 def get_password_hash(password: str) -> str:
     """Genera un hash seguro de la contraseña"""
     try:
-        print(f"🔍 [SECURITY DEBUG] Generando hash para contraseña de {len(password)} caracteres")
         hash_result = pwd_context.hash(password)
-        print(f"  - Hash generado: {hash_result[:50]}...")
         return hash_result
     except Exception as e:
-        print(f"❌ [SECURITY ERROR] Error generando hash: {e}")
+        log.error(f"Error generating hash: {e}")
         raise
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
@@ -104,10 +92,9 @@ def emergency_password_reset(email: str, new_password: str):
                 {"new_hash": new_hash, "email": email}
             )
             conn.commit()
-            
-        print(f"✅ Contraseña reseteada para {email}")
+
         return True
         
     except Exception as e:
-        print(f"❌ Error reseteando contraseña: {e}")
+        log.error(f"Error resetting password: {e}")
         return False
